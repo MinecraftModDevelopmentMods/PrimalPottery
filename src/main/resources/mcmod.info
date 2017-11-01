@@ -1,0 +1,15 @@
+[{
+  "modid": "${modid}",
+  "name": "${modname}",
+  "description": "Pottery! The Primal Way!",
+  "version": "${version}",
+  "mcversion": "${mcversion}",
+  "url": "",
+  "updateUrl": "",
+  "authorList": [ "Late Night Mod Crafters" ],
+  "credits": "The Forge and FML guys and everyone's moms.",
+  "logoFile": "",
+  "screenshots": [],
+  "requiredMods": [],
+  "dependencies": []
+}]
