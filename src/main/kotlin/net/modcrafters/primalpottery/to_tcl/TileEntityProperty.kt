@@ -2,7 +2,6 @@ package net.modcrafters.primalpottery.to_tcl
 
 import net.minecraft.tileentity.TileEntity
 import net.minecraftforge.common.property.IUnlistedProperty
-import net.modcrafters.primalpottery.potterywheel.PotteryWheelEntity
 
 class TileEntityProperty<E: TileEntity>(private val clazz: Class<E>) : IUnlistedProperty<E> {
     override fun getType() = this.clazz
@@ -11,6 +10,6 @@ class TileEntityProperty<E: TileEntity>(private val clazz: Class<E>) : IUnlisted
     override fun valueToString(value: E) = value.toString()
 
     companion object {
-        val TILE_ENTITY_PROPERTY = TileEntityProperty(PotteryWheelEntity::class.java)
+        val TILE_ENTITY_PROPERTY = TileEntityProperty(TileEntity::class.java)
     }
 }

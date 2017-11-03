@@ -22,14 +22,21 @@ object CylinderGenerator {
             val r = radius
             val r3 = radius / 3.0
 
-            val p0 = V2d(-r3, -r)
-            val p1 = V2d(r3, -r)
-            val p2 = V2d(r, -r3)
-            val p3 = V2d(r, r3)
-            val p4 = V2d(r3, r)
-            val p5 = V2d(-r3, r)
-            val p6 = V2d(-r, r3)
-            val p7 = V2d(-r, -r3)
+            fun getPoint(angle: Double) =
+                V2d(radius * Math.cos(angle), radius * Math.sin(angle))
+
+            val pi = Math.PI
+            val pi8 = pi / 8.0
+            val pi4 = pi / 4.0
+
+            val p0 = getPoint(pi8) // V2d(-r3, -r)
+            val p1 = getPoint(pi8 + pi4) // V2d(r3, -r)
+            val p2 = getPoint(pi8 + pi4 * 2) // V2d(r, -r3)
+            val p3 = getPoint(pi8 + pi4 * 3) // V2d(r, r3)
+            val p4 = getPoint(pi8 + pi4 * 4) // V2d(r3, r)
+            val p5 = getPoint(pi8 + pi4 * 5) // V2d(-r3, r)
+            val p6 = getPoint(pi8 + pi4 * 6) // V2d(-r, r3)
+            val p7 = getPoint(pi8 + pi4 * 7) // V2d(-r, -r3)
 
             val top1 = arrayOf(p0, p5, p6, p7).reversedArray()
             val top2 = arrayOf(p0, p1, p4, p5).reversedArray()

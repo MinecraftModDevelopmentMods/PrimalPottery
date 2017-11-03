@@ -1,65 +1,76 @@
 package net.modcrafters.primalpottery.potterywheel
 
-import com.google.common.cache.CacheBuilder
-import net.minecraft.block.Block
-import net.minecraft.block.ITileEntityProvider
 import net.minecraft.block.material.Material
-import net.minecraft.block.state.BlockStateContainer
 import net.minecraft.block.state.IBlockState
 import net.minecraft.client.Minecraft
+import net.minecraft.client.renderer.GlStateManager
+import net.minecraft.client.renderer.Tessellator
 import net.minecraft.client.renderer.block.model.BakedQuad
+import net.minecraft.client.renderer.texture.TextureMap
+import net.minecraft.client.renderer.vertex.DefaultVertexFormats
 import net.minecraft.client.renderer.vertex.VertexFormat
 import net.minecraft.init.Blocks
 import net.minecraft.item.ItemStack
+import net.minecraft.tileentity.TileEntity
 import net.minecraft.util.BlockRenderLayer
 import net.minecraft.util.EnumFacing
-import net.minecraft.util.math.BlockPos
 import net.minecraft.util.math.Vec3d
-import net.minecraft.world.IBlockAccess
-import net.minecraft.world.World
 import net.minecraftforge.common.model.TRSRTransformation
-import net.minecraftforge.common.property.ExtendedBlockState
-import net.minecraftforge.common.property.IExtendedBlockState
-import net.minecraftforge.fml.common.registry.GameRegistry
-import net.minecraftforge.registries.IForgeRegistry
 import net.modcrafters.primalpottery.MOD_ID
 import net.modcrafters.primalpottery.PrimalPotteryMod
 import net.modcrafters.primalpottery.getSprite
 import net.modcrafters.primalpottery.to_tcl.CylinderGenerator
-import net.modcrafters.primalpottery.to_tcl.TileEntityProperty.Companion.TILE_ENTITY_PROPERTY
+import net.modcrafters.primalpottery.to_tcl.MultiPartEntityBlock
 import net.ndrei.teslacorelib.annotations.AutoRegisterBlock
-import net.ndrei.teslacorelib.blocks.MultiPartBlock
 import net.ndrei.teslacorelib.render.selfrendering.*
-import java.util.concurrent.TimeUnit
+import org.lwjgl.opengl.GL11.GL_QUADS
 import javax.vecmath.Matrix4d
 import javax.vecmath.Vector3d
 
 @AutoRegisterBlock
 @SelfRenderingBlock
-object PotteryWheelBlock : MultiPartBlock(MOD_ID, PrimalPotteryMod.creativeTab, "pottery_wheel", Material.WOOD), ISelfRenderingBlock, ITileEntityProvider {
-    override fun registerBlock(registry: IForgeRegistry<Block>) {
-        super.registerBlock(registry)
-        GameRegistry.registerTileEntity(PotteryWheelEntity::class.java, this.registryName!!.toString())
-    }
+object PotteryWheelBlock
+    : MultiPartEntityBlock<PotteryWheelEntity>(MOD_ID, PrimalPotteryMod.creativeTab, "pottery_wheel", Material.WOOD, PotteryWheelEntity::class.java), ISelfRenderingBlock {
+    private val legHeight = 20.0
+    private val tableHeight = 4.0
 
-    override fun createBlockState(): BlockStateContainer {
-        return ExtendedBlockState(this, arrayOf(), arrayOf(TILE_ENTITY_PROPERTY))
-    }
+    private val bottomThingOffset = 2.0
+    private val bottomThingWidth = 2.0
 
-    override fun getExtendedState(state: IBlockState, world: IBlockAccess, pos: BlockPos): IBlockState {
-        if (state is IExtendedBlockState) {
-            val te = world.getTileEntity(pos)
-            if (te is PotteryWheelEntity) {
-                return state.withProperty(TILE_ENTITY_PROPERTY, te)
-            }
-        }
-        return super.getExtendedState(state, world, pos)
-    }
+    private val bottomCylinderOffset = bottomThingOffset + bottomThingWidth + 1.0
+    private val bottomCylinderRadius = 12.0
+    private val bottomCylinderHeight = 3.0
 
-    override fun createNewTileEntity(worldIn: World, meta: Int) = PotteryWheelEntity()
+    private val topCylinderOffset = legHeight + tableHeight + 2.0
+    private val topCylinderRadius = 6.5
+    private val topCylinderHeight = 2.0
+
+    private val centerCylinderBottom = 0.5
+    private val centerCylinderRadius = 1.0
+    private val centerCylinderHeight = topCylinderOffset - centerCylinderBottom
+
+    private val rotatingParts by lazy { mutableListOf<RawLump>().also { rotating ->
+        val stone = Blocks.STONE.defaultState
+        val stoneModel = Minecraft.getMinecraft().blockRendererDispatcher.blockModelShapes.getModelForState(stone)
+
+        CylinderGenerator.generateCylinder8(16.0, bottomCylinderOffset, 16.0, bottomCylinderHeight, bottomCylinderRadius, { face ->
+            stoneModel.getSprite(stone, face)
+        }).also { rotating.add(it) }
+
+        CylinderGenerator.generateCylinder8(16.0, topCylinderOffset, 16.0, topCylinderHeight, topCylinderRadius, { face ->
+            stoneModel.getSprite(stone, face)
+        }).also { rotating.add(it) }
+
+        val log = Blocks.LOG.defaultState
+        val logModel = Minecraft.getMinecraft().blockRendererDispatcher.blockModelShapes.getModelForState(log)
+
+        CylinderGenerator.generateCylinder8(16.0, centerCylinderBottom, 16.0, centerCylinderHeight, centerCylinderRadius, { face ->
+            logModel.getSprite(log, face)
+        }).also { rotating.add(it) }
+    }.toList() }
 
     override fun getBakeries(layer: BlockRenderLayer?, state: IBlockState?, stack: ItemStack?, side: EnumFacing?, rand: Long, transform: TRSRTransformation) = mutableListOf<IBakery>().also { bakeries ->
-        if (layer == BlockRenderLayer.SOLID) {
+        if ((layer == BlockRenderLayer.SOLID) || (layer == null)) {
             //#region static stuff
 
             val staticBakeries = mutableListOf<IBakery>()
@@ -126,62 +137,61 @@ object PotteryWheelBlock : MultiPartBlock(MOD_ID, PrimalPotteryMod.creativeTab, 
                 }
             }.static().addTo(staticBakeries)
 
+            if (layer == null) {
+                staticBakeries.addAll(this@PotteryWheelBlock.rotatingParts)
+            }
+
             staticBakeries.combine().static().addTo(bakeries)
 
             //#endregion
-
-            val rotating = mutableListOf<RawLump>()
-
-            val stone = Blocks.STONE.defaultState
-            val stoneModel = Minecraft.getMinecraft().blockRendererDispatcher.blockModelShapes.getModelForState(stone)
-
-            val bottomCylinderOffset = bottomThingOffset + bottomThingWidth + 1.0
-            val bottomCylinderRadius = 12.0
-            val bottomCylinderHeight = 3.0
-            CylinderGenerator.generateCylinder8(16.0, bottomCylinderOffset, 16.0, bottomCylinderHeight, bottomCylinderRadius, { face ->
-                stoneModel.getSprite(stone, face)
-            }).also { rotating.add(it) }
-
-            val topCylinderOffset = legHeight + tableHeight + 2.0
-            val topCylinderRadius = 6.5
-            val topCylinderHeight = 2.0
-            CylinderGenerator.generateCylinder8(16.0, topCylinderOffset, 16.0, topCylinderHeight, topCylinderRadius, { face ->
-                stoneModel.getSprite(stone, face)
-            }).also { rotating.add(it) }
-
-            val log = Blocks.LOG.defaultState
-            val logModel = Minecraft.getMinecraft().blockRendererDispatcher.blockModelShapes.getModelForState(log)
-
-            val centerCylinderBottom = 0.5
-            val centerCylinderRadius = 1.0
-            val centerCylinderHeight = topCylinderOffset - centerCylinderBottom
-            CylinderGenerator.generateCylinder8(16.0, centerCylinderBottom, 16.0, centerCylinderHeight, centerCylinderRadius, { face ->
-                logModel.getSprite(log, face)
-            }).also { rotating.add(it) }
-
-            object: IBakery {
-                private val cache = CacheBuilder.newBuilder().expireAfterAccess(42, TimeUnit.SECONDS).build<String, MutableList<BakedQuad>>()
-                private lateinit var lumps: Array<RawLump>
-
-                override fun getQuads(state: IBlockState?, stack: ItemStack?, side: EnumFacing?, vertexFormat: VertexFormat, transform: TRSRTransformation): MutableList<BakedQuad> {
-                    val angle = (state as? IExtendedBlockState)?.getValue(TILE_ENTITY_PROPERTY)?.rotationAngle ?: 0.0
-                    return this.cache.get(angle.toString(), {
-                        PrimalPotteryMod.logger.info("Created Rotating Bakery for: <$angle>!")
-                        val matrix = Matrix4d().also { it.setIdentity() }
-                        matrix.mul(Matrix4d().also { it.set(Vector3d(16.0, 0.0, 16.0)) })
-                        matrix.mul(Matrix4d().also { it.rotY(angle) })
-                        matrix.mul(Matrix4d().also { it.set(Vector3d(-16.0, 0.0, -16.0)) })
-
-                        this.lumps.fold(mutableListOf<BakedQuad>()) { list, lump ->
-                            list.also { lump.bake(it, vertexFormat, transform, matrix) }
-                        }
-                    })
-                }
-
-                fun initBakery(lumps: Array<RawLump>) = this.also { it.lumps = lumps }
-            }.initBakery(rotating.toTypedArray()).addTo(bakeries)
-
-            PrimalPotteryMod.logger.info("Created Block Bakeries!")
         }
+    }
+
+    override fun renderTESR(proxy: TESRProxy, te: TileEntity, x: Double, y: Double, z: Double, partialTicks: Float, destroyStage: Int, alpha: Float) {
+        val tile = (te as? PotteryWheelEntity) ?: return
+
+        GlStateManager.pushMatrix()
+
+        GlStateManager.scale(1.0f, -1.0f, 1.0f)
+        GlStateManager.translate(16.0f, -32.0f, 16.0f)
+        GlStateManager.rotate(-(tile.rotationAngle * 360.0 / (Math.PI * 2)).toFloat(), 0.0f, 1.0f, 0.0f)
+        GlStateManager.translate(-16.0f, 0.0f, -16.0f)
+
+        proxy.bindTexture(TextureMap.LOCATION_BLOCKS_TEXTURE)
+        GlStateManager.disableLighting()
+
+        val buffer = Tessellator.getInstance().buffer
+        buffer.begin(GL_QUADS, DefaultVertexFormats.POSITION_TEX_COLOR)
+        this.rotatingParts.forEach { it.draw(buffer) }
+        Tessellator.getInstance().draw()
+
+        if (tile.hasClay) {
+            val clay = Blocks.STAINED_HARDENED_CLAY.getStateFromMeta(14)
+            val clayModel = Minecraft.getMinecraft().blockRendererDispatcher.blockModelShapes.getModelForState(clay)
+
+            var discOffset = 0.0
+
+            buffer.begin(GL_QUADS, DefaultVertexFormats.POSITION_TEX_COLOR)
+            /*arrayOf(
+                1.0 to 2.0,
+                5.0 to 3.0,
+                2.0 to 2.0,
+                2.0 to 1.0,
+                1.0 to 2.0
+            )*/tile.getPotteryModel().discs.map {
+                discOffset += it.height
+                CylinderGenerator.generateCylinder8(
+                    16.0, discOffset - it.height, 16.0,
+                    it.height, it.radius + (4.0 - it.radius) * (1.0 - tile.clayProgress), { face -> clayModel.getSprite(clay, face) })
+            }.forEach {
+                it.draw(buffer)
+            }
+
+            GlStateManager.translate(0.0, topCylinderOffset + topCylinderHeight, 0.0)
+            Tessellator.getInstance().draw()
+        }
+
+        GlStateManager.enableLighting()
+        GlStateManager.popMatrix()
     }
 }
