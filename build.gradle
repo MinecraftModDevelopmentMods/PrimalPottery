@@ -78,6 +78,8 @@ repositories {
     maven { name='forgelin'; url='http://maven.shadowfacts.net/' }
 
     maven { name='jei'; url="http://dvs1.progwml6.com/files/maven" }
+
+    maven { name='nmd'; url="https://maven.nmd.so" }
 }
 
 dependencies {
@@ -88,12 +90,18 @@ dependencies {
     if (file("ci-lib/tesla-core-lib-${project.teslacorelib_mc_version}-${project.teslacorelib_version}-deobf.jar").exists()) {
         compile files("ci-lib/tesla-core-lib-${project.teslacorelib_mc_version}-${project.teslacorelib_version}-deobf.jar")
     }
+    else if (file("Tesla-Core-Lib/build.gradle").exists()) {
+        compile project(path: ':Tesla-Core-Lib')
+    }
     else {
         compile("net.ndrei:tesla-core-lib:${project.teslacorelib_mc_version}-${project.teslacorelib_version}:deobf") { changing = true }
     }
 
     deobfCompile "mezz.jei:jei_${project.minecraft_version}:${project.jei_version}:api"
     runtime "mezz.jei:jei_${project.minecraft_version}:${project.jei_version}"
+
+    compileOnly "nmd.primal.core:PrimalCore:1.12.2-0.6.0.11:dev"
+    runtime "nmd.primal.core:PrimalCore:1.12.2-0.6.0.11"
 }
 
 processResources {

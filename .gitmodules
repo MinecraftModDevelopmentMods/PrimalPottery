@@ -1,3 +1,4 @@
 [submodule "Tesla-Core-Lib"]
 	path = Tesla-Core-Lib
 	url = https://github.com/faceofcat/Tesla-Core-Lib.git
+	branch = 1.12

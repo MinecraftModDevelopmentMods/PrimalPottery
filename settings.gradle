@@ -1,1 +1,2 @@
 rootProject.name = "Primal Pottery"
+include 'Tesla-Core-Lib'
