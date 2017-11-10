@@ -34,4 +34,38 @@ class Pottery(var discs: Array<PotteryDisc> = arrayOf()): INBTSerializable<NBTTa
     val cacheKey get() = this.discs.fold("pot") { str, disc ->
         str + "::${disc.radius}:${disc.height}"
     }
+
+    fun getPotteryInfo(): PotteryInfo {
+        var thin = false
+        var bottom = -1
+        var volume = 0
+        this.discs.forEachIndexed { index, disc ->
+            if ((disc.innerRadius ?: 0.0) <= 0.0) {
+                bottom = index
+            }
+            if ((disc.radius - (disc.innerRadius ?: 0.0)) < .5) {
+                thin = true
+            }
+        }
+
+        if (thin) return PotteryInfo(PotteryType.LUMP_THIN, 0)
+        if (bottom < 0) return PotteryInfo(PotteryType.LUMP_NO_BOTTOM, 0)
+
+        var pot = false
+        (0 until bottom).forEach {
+            volume += ((this.discs[it].innerRadius ?: 0.0) * 10).toInt()
+            if ((it > 0) && !pot) {
+                val innerBefore = this.discs[it-1].innerRadius ?: 0.0
+                val inner = this.discs[it].innerRadius ?: 0.0
+                if (innerBefore < inner) {
+                    pot = true
+                }
+            }
+        }
+
+        if (volume <= 0) return PotteryInfo(PotteryType.LUMP, 0)
+        return PotteryInfo(if (pot) PotteryType.POT else PotteryType.BOWL, volume)
+    }
+
+    class PotteryInfo(val type: PotteryType, val volume: Int)
 }

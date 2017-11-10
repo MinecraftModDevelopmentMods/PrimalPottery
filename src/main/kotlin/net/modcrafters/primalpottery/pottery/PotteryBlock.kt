@@ -51,16 +51,16 @@ object PotteryBlock
             (pottery?.discs?.map { it.height to it.radius }?.toTypedArray() ?: arrayOf(
                 1.0 to 2.0,
                 5.0 to 3.0,
-                2.0 to 2.0,
-                2.0 to 1.0,
-                1.0 to 2.0
+                2.0 to 4.0,
+                2.0 to 5.0,
+                1.0 to 5.5
             )).map {
                 val bottom = discOffset
                 val height = it.first * scale
                 discOffset += height
                 CylinderGenerator.generateCylinder8(
                     16.0, bottom, 16.0,
-                    height, it.second * scale, { face -> clayModel.getSprite(clay, face) })
+                    height, it.second * scale, (it.second - 1.0) * scale, { face -> clayModel.getSprite(clay, face) })
             }.combine().static().addTo(bakeries)
         }
         else if (layer == BlockRenderLayer.SOLID) {
@@ -84,6 +84,7 @@ object PotteryBlock
                                     val b = bottom
                                     bottom += it.height
                                     CylinderGenerator.generateCylinder8(centerX, b, centerZ, it.height, it.radius,
+                                        (it.radius - 1.0).coerceAtLeast(0.0),
                                         { face -> clayModel.getSprite(clay, face) })
                                 }.combine().getQuads(state, stack, side, vertexFormat, transform)
                             }))
