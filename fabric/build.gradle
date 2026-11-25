@@ -10,7 +10,9 @@ dependencies {
 }
 
 loom {
-    def aw = rootProject.file("src/main/resources/${mod_id}.accesswidener")
+    // Keep this next to the Fabric mod metadata. Shared src is an output of the common stonecutterMerge,
+    // and validateAccessWidener fails if it reads that tree without depending on the merge.
+    def aw = file("src/main/resources/${mod_id}.accesswidener")
     if (aw.exists()) {
         accessWidenerPath.set(aw)
     }
