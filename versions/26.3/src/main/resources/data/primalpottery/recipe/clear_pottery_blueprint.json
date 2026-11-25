@@ -1,0 +1,7 @@
+{
+  "type": "minecraft:crafting_shapeless",
+  "ingredients": ["primalpottery:pottery_template"],
+  "result": {
+    "id": "primalpottery:raw_pottery_template"
+  }
+}

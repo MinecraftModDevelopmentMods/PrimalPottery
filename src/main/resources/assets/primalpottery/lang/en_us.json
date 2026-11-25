@@ -1,0 +1,15 @@
+{
+  "itemGroup.primalpottery": "Primal Pottery",
+  "block.primalpottery.pottery_wheel": "Pottery Wheel",
+  "block.primalpottery.pottery": "Pottery",
+  "item.primalpottery.pottery_wheel": "Pottery Wheel",
+  "item.primalpottery.pottery": "Pottery",
+  "item.primalpottery.pottery_template": "Pottery Blueprint",
+  "item.primalpottery.raw_pottery_template": "Raw Pottery Template",
+  "tooltip.primalpottery.type": "Type: %s",
+  "tooltip.primalpottery.capacity": "Capacity: %s mL",
+  "pottery.primalpottery.type.lump": "Lump",
+  "pottery.primalpottery.type.pot": "Pot",
+  "pottery.primalpottery.type.jar": "Jar",
+  "pottery.primalpottery.type.jug": "Jug"
+}

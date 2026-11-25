@@ -1,152 +1,83 @@
-buildscript {
-    ext.kotlin_version = project.kotlin_version
-    repositories {
-        mavenCentral()
-        maven { url = "http://files.minecraftforge.net/maven" }
-        maven { url = "http://repo.maven.apache.org/maven2" }
-        maven { url = "https://oss.sonatype.org/content/repositories/snapshots/" }
-    }
-    dependencies {
-        classpath 'net.minecraftforge.gradle:ForgeGradle:2.3-SNAPSHOT'
-        classpath "org.jetbrains.kotlin:kotlin-gradle-plugin:${project.kotlin_version}"
-    }
-}
-apply plugin: "net.minecraftforge.gradle.forge"
-apply plugin: 'kotlin'
-apply plugin: "maven-publish"
-apply plugin: "maven"
-
-archivesBaseName = project.mod_name.replace(' ', '-').toLowerCase()
-group = "net.modcrafters"
-
-version = "${project.minecraft_version}-${project.mod_version}"
-if (project.hasProperty('mod_suffix')) {
-    version += "-${project.mod_suffix}"
+plugins {
+    id 'multiloader-common'
+    id 'net.neoforged.moddev'
 }
 
-compileJava { sourceCompatibility = targetCompatibility = "1.8" }
-compileKotlin { kotlinOptions { jvmTarget = "1.8" } }
-
-minecraft {
-    version = "${project.minecraft_version}-${project.forge_version}"
-    mappings = "${project.mcp_version}"
-    runDir = "run"
-
-    replace '@MOD-ID@', project.mod_id
-    replace '@MOD-NAME@', project.mod_name
-    replace '@MOD-VERSION@', project.mod_version
-    replace '@MOD-MC-VERSION@', project.minecraft_version
-    replace '@FORGELIN-VERSION@', project.forgelin_version
-    replace '@FORGE-VERSION@', project.forge_version
-    replace '@TESLA-CORE-LIB-VERSION@', project.teslacorelib_version
-
-    replaceIn 'constants.kt'
-}
-
-// Mad hacks to make source replacements work for Kotlin
-// "stolen" from: https://github.com/PaleoCrafter/VanillaImmersion/blob/ee82ecafb76659cf7d7822a722c8f63f43f41d01/build.gradle#L119-L136
-import net.minecraftforge.gradle.user.TaskSourceCopy
-for (set in sourceSets) {
-    def taskName = "source${set.name.capitalize()}Kotlin"
-    def dir = new File(project.getBuildDir(), "sources/${set.name}/kotlin")
-    task(taskName, type: TaskSourceCopy) {
-        source = set.getKotlin()
-        output = dir
+neoForge {
+    neoFormVersion = neo_form_version
+    // Automatically enable AccessTransformers if the file exists
+    def at = rootProject.file('src/accesstransformer.cfg')
+    if (at.exists()) {
+        accessTransformers.from(at.absolutePath)
     }
-    def compileTask = tasks[set.getCompileTaskName("kotlin")]
-    compileTask.source = dir
-    compileTask.dependsOn taskName
-    def dirPath = dir.toPath()
-    compileKotlin.include {
-        return it.file.toPath().startsWith(dirPath)
-    }
-}
-// end of "stolen" part :)
-
-configurations {
-    compile.extendsFrom exportedCompile
-    deployerJars
-
-    all { resolutionStrategy.cacheChangingModulesFor 0, 'seconds' }
 }
 
 repositories {
     mavenCentral()
-    mavenLocal()
-    jcenter()
-    maven { name='mine'; url='https://maven.modcrafters.net' }
-    maven { name='forgelin'; url='http://maven.shadowfacts.net/' }
-
-    maven { name='jei'; url="http://dvs1.progwml6.com/files/maven" }
-
-    maven { name='nmd'; url="https://maven.nmd.so" }
 }
 
 dependencies {
-    deployerJars "org.apache.maven.wagon:wagon-ssh:2.2"
-    compile "org.jetbrains.kotlin:kotlin-stdlib-jre8:${project.kotlin_version}"
-    compile "net.shadowfacts:Forgelin:${project.forgelin_version}"
+    // Fabric and NeoForge both bundle Fabric Mixin, so it is safe to use it in common
+    // If you need to update, check what version they are using to see what is compatible
+    // https://github.com/neoforged/NeoForge/blob/26.3.x/gradle.properties#L37
+    // https://github.com/FabricMC/fabric-loader/blob/master/gradle.properties#L12
+    compileOnly('net.fabricmc:sponge-mixin:0.17.3+mixin.0.8.7')
+    compileOnly('org.jspecify:jspecify:1.0.0')
+    // Fabric and NeoForge both bundle MixinExtras, so it is safe to use it in common
+    compileOnly(annotationProcessor('io.github.llamalad7:mixinextras-common:0.5.3'))
 
-    if (file("ci-lib/tesla-core-lib-${project.teslacorelib_mc_version}-${project.teslacorelib_version}-deobf.jar").exists()) {
-        compile files("ci-lib/tesla-core-lib-${project.teslacorelib_mc_version}-${project.teslacorelib_version}-deobf.jar")
-    }
-    else if (file("Tesla-Core-Lib/build.gradle").exists()) {
-        compile project(path: ':Tesla-Core-Lib')
-    }
-    else {
-        compile("net.ndrei:tesla-core-lib:${project.teslacorelib_mc_version}-${project.teslacorelib_version}:deobf") { changing = true }
-    }
-
-    deobfCompile "mezz.jei:jei_${project.minecraft_version}:${project.jei_version}:api"
-    runtime "mezz.jei:jei_${project.minecraft_version}:${project.jei_version}"
-
-    compileOnly "nmd.primal.core:PrimalCore:1.12.2-0.6.0.11:dev"
-    runtime "nmd.primal.core:PrimalCore:1.12.2-0.6.0.11"
+    testImplementation 'org.junit.jupiter:junit-jupiter:5.12.2'
+    testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+    testRuntimeOnly 'com.google.code.gson:gson:2.14.0'
+    testRuntimeOnly 'org.slf4j:slf4j-nop:2.0.17'
 }
 
-processResources {
-    inputs.property "modid", project.mod_id
-    inputs.property "modname", project.mod_name
-    inputs.property "version", project.mod_version
-    inputs.property "mcversion", project.minecraft.version
-
-    from(sourceSets.main.resources.srcDirs) {
-        include '**/*.info'
-        include '**/*.properties'
-
-        // replace version and mcversion
-        expand 'modid':project.mod_id, 'modname':project.mod_name, 'version':project.version, 'mcversion':project.minecraft.version
-    }
-
-    from(sourceSets.main.resources.srcDirs) {
-        exclude '**/*.info'
-        exclude '**/*.properties'
-    }
+tasks.named('test', Test) {
+    useJUnitPlatform()
 }
 
-task sourcesJar(type: Jar) {
-    from sourceSets.main.allSource
-    classifier = 'sources'
+// Geometry tests exercise the real PoseStack and arm transforms without launching a client.
+sourceSets.test {
+    compileClasspath += sourceSets.main.compileClasspath
+    runtimeClasspath += sourceSets.main.compileClasspath
 }
 
-task deobfJar(type: Jar) {
-    from sourceSets.main.output
-    classifier = 'deobf'
+configurations {
+    commonJava {
+        canBeResolved = false
+        canBeConsumed = true
+    }
+    commonResources {
+        canBeResolved = false
+        canBeConsumed = true
+    }
 }
 
 artifacts {
-    archives sourceJar, deobfJar
+    // Stonecutter generates the sources this version compiles, and the loaders compile those same files.
+    sourceSets.main.java.srcDirs.each { dir ->
+        add('commonJava', dir) { builtBy 'stonecutterGenerate' }
+    }
+    sourceSets.main.resources.srcDirs.each { dir ->
+        add('commonResources', dir) { builtBy 'stonecutterGenerate' }
+    }
 }
 
-if (project.hasProperty('mavenFTPServer') && project.hasProperty('mavenFTPUser') && project.hasProperty('mavenFTPPassword')) {
-    uploadArchives {
-        repositories.mavenDeployer {
-            dependsOn build, deobfJar, sourcesJar
-            configuration = configurations.deployerJars
-            repository(url: project.mavenFTPServer) {
-                authentication(userName: project.mavenFTPUser, password: mavenFTPPassword)
+// Implement mcgradleconventions loader attribute
+def loaderAttribute = Attribute.of('io.github.mcgradleconventions.loader', String)
+['apiElements', 'runtimeElements', 'sourcesElements', 'javadocElements'].each { variant ->
+    configurations.named(variant) {
+        attributes {
+            attribute(loaderAttribute, 'common')
+        }
+    }
+}
+sourceSets.configureEach {
+    [it.compileClasspathConfigurationName, it.runtimeClasspathConfigurationName].each { variant->
+        configurations.named(variant) {
+            attributes {
+                attribute(loaderAttribute, 'common')
             }
         }
     }
-    uploadArchives.dependsOn build, sourcesJar, deobfJar
 }

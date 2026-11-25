@@ -1,0 +1,10 @@
+{
+  "variants": {
+    "half=lower": {
+      "model": "primalpottery:block/pottery_wheel"
+    },
+    "half=upper": {
+      "model": "primalpottery:block/pottery_wheel"
+    }
+  }
+}

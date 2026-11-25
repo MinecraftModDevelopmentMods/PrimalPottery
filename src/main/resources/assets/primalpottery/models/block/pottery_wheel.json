@@ -1,0 +1,19 @@
+{
+  "parent": "minecraft:block/block",
+  "textures": {
+    "particle": "minecraft:block/oak_planks",
+    "planks": "minecraft:block/oak_planks",
+    "stone": "minecraft:block/stone",
+    "log": "minecraft:block/oak_log"
+  },
+  "elements": [
+    { "from": [0.5, 0, 0.5], "to": [2.5, 10, 2.5], "faces": { "down": { "texture": "#planks" }, "up": { "texture": "#planks" }, "north": { "texture": "#planks" }, "south": { "texture": "#planks" }, "west": { "texture": "#planks" }, "east": { "texture": "#planks" } } },
+    { "from": [13.5, 0, 0.5], "to": [15.5, 10, 2.5], "faces": { "down": { "texture": "#planks" }, "up": { "texture": "#planks" }, "north": { "texture": "#planks" }, "south": { "texture": "#planks" }, "west": { "texture": "#planks" }, "east": { "texture": "#planks" } } },
+    { "from": [0.5, 0, 13.5], "to": [2.5, 10, 15.5], "faces": { "down": { "texture": "#planks" }, "up": { "texture": "#planks" }, "north": { "texture": "#planks" }, "south": { "texture": "#planks" }, "west": { "texture": "#planks" }, "east": { "texture": "#planks" } } },
+    { "from": [13.5, 0, 13.5], "to": [15.5, 10, 15.5], "faces": { "down": { "texture": "#planks" }, "up": { "texture": "#planks" }, "north": { "texture": "#planks" }, "south": { "texture": "#planks" }, "west": { "texture": "#planks" }, "east": { "texture": "#planks" } } },
+    { "from": [0, 10, 0], "to": [16, 12, 16], "faces": { "down": { "texture": "#planks" }, "up": { "texture": "#planks" }, "north": { "texture": "#planks" }, "south": { "texture": "#planks" }, "west": { "texture": "#planks" }, "east": { "texture": "#planks" } } },
+    { "from": [2, 2.5, 2], "to": [14, 4, 14], "faces": { "down": { "texture": "#stone" }, "up": { "texture": "#stone" }, "north": { "texture": "#stone" }, "south": { "texture": "#stone" }, "west": { "texture": "#stone" }, "east": { "texture": "#stone" } } },
+    { "from": [4.75, 13, 4.75], "to": [11.25, 14, 11.25], "faces": { "down": { "texture": "#stone" }, "up": { "texture": "#stone" }, "north": { "texture": "#stone" }, "south": { "texture": "#stone" }, "west": { "texture": "#stone" }, "east": { "texture": "#stone" } } },
+    { "from": [7.5, 0.25, 7.5], "to": [8.5, 13, 8.5], "faces": { "down": { "texture": "#log" }, "up": { "texture": "#log" }, "north": { "texture": "#log" }, "south": { "texture": "#log" }, "west": { "texture": "#log" }, "east": { "texture": "#log" } } }
+  ]
+}
