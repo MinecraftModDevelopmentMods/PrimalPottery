@@ -61,14 +61,14 @@ public final class PotteryGameTests {
 
         checkTemplateCycle(helper, player);
 
-        look(helper, player, 1.5, 2.2, -0.2, 1.5, 2.2, 1.5);
+        aim(player, partCenter(helper, wheelPos, PotteryWheelBlockEntity.BIG_WHEEL));
         player.setItemInHand(InteractionHand.MAIN_HAND, ItemStack.EMPTY);
         helper.useBlock(wheelPos, player);
         helper.assertValueEqual(wheel.spinTicks(), 24, "spin ticks");
 
         ItemStack clay = new ItemStack(Items.CLAY_BALL);
         player.setItemInHand(InteractionHand.MAIN_HAND, clay);
-        look(helper, player, 1.5, 4.0, 1.5, 1.5, 2.84, 1.5);
+        aim(player, partCenter(helper, wheelPos, PotteryWheelBlockEntity.SMALL_WHEEL));
         helper.useBlock(wheelPos, player);
         helper.assertTrue(wheel.hasClay(), "clay did not start");
         helper.assertTrue(clay.is(Items.CLAY_BALL), "clay ball was consumed");
@@ -102,7 +102,7 @@ public final class PotteryGameTests {
         helper.assertTrue(pots.get(0) != null, "pot was not placed");
 
         player.setItemInHand(InteractionHand.MAIN_HAND, ItemStack.EMPTY);
-        look(helper, player, 3.25, 4.0, 1.25, 3.25, 2.2, 1.25);
+        aim(player, PotteryBlockEntity.BOXES.getFirst().move(helper.absolutePos(floor.above())).getCenter());
         helper.useBlock(floor.above(), player);
         helper.assertBlockNotPresent(ModBlocks.POTTERY, floor.above());
         potteryItem(helper);
@@ -146,10 +146,20 @@ public final class PotteryGameTests {
         return items.getFirst().getItem();
     }
 
-    private static void look(GameTestHelper helper, Player player, double x, double y, double z, double lookX, double lookY, double lookZ) {
-        Vec3 eye = helper.absoluteVec(new Vec3(x, y, z));
-        player.setPos(eye.x, eye.y - player.getEyeHeight(), eye.z);
-        player.lookAt(net.minecraft.commands.arguments.EntityAnchorArgument.Anchor.EYES, helper.absoluteVec(new Vec3(lookX, lookY, lookZ)));
+    private static Vec3 partCenter(GameTestHelper helper, BlockPos relative, int part) {
+        return PotteryWheelBlockEntity.BOXES.get(part).move(helper.absolutePos(relative)).getCenter();
+    }
+
+    private static void aim(Player player, Vec3 at) {
+        // useBlock ignores the crosshair and hits the block center. The wheel and pottery
+        // still choose a part from the eye ray, so the eyes have to sit on a ray through that part.
+        placeEyes(player, at.add(0, 0, -1));
+        player.lookAt(net.minecraft.commands.arguments.EntityAnchorArgument.Anchor.EYES, at);
+    }
+
+    private static void placeEyes(Player player, Vec3 eye) {
+        Vec3 actual = player.getEyePosition();
+        player.setPos(player.getX() + eye.x - actual.x, player.getY() + eye.y - actual.y, player.getZ() + eye.z - actual.z);
     }
 
     private static final class Wheel extends GameTestInstance {
