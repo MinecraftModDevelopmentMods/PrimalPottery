@@ -1,7 +1,20 @@
 {
   "variants": {
-    "": {
-      "model": "primalpottery:block/pottery"
-    }
+    "light=0": { "model": "primalpottery:block/pottery" },
+    "light=1": { "model": "primalpottery:block/pottery" },
+    "light=2": { "model": "primalpottery:block/pottery" },
+    "light=3": { "model": "primalpottery:block/pottery" },
+    "light=4": { "model": "primalpottery:block/pottery" },
+    "light=5": { "model": "primalpottery:block/pottery" },
+    "light=6": { "model": "primalpottery:block/pottery" },
+    "light=7": { "model": "primalpottery:block/pottery" },
+    "light=8": { "model": "primalpottery:block/pottery" },
+    "light=9": { "model": "primalpottery:block/pottery" },
+    "light=10": { "model": "primalpottery:block/pottery" },
+    "light=11": { "model": "primalpottery:block/pottery" },
+    "light=12": { "model": "primalpottery:block/pottery" },
+    "light=13": { "model": "primalpottery:block/pottery" },
+    "light=14": { "model": "primalpottery:block/pottery" },
+    "light=15": { "model": "primalpottery:block/pottery" }
   }
 }

@@ -9,7 +9,6 @@ import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.Vec3;
 import net.modcrafters.minecraft.primalpottery.block.ModBlocks;
-import net.modcrafters.minecraft.primalpottery.block.PotteryBlock;
 import net.modcrafters.minecraft.primalpottery.block.PotteryBlockEntity;
 import net.modcrafters.minecraft.primalpottery.item.ModItems;
 import org.jspecify.annotations.Nullable;
@@ -29,7 +28,7 @@ public final class Placement {
             }
             int part = destination(
                     pottery,
-                    PotteryBlock.aimedPart(level, pos, player, hit.getLocation()),
+                    PartHits.quadrant(pos, hit.getLocation()),
                     player.isShiftKeyDown(),
                     hit.getDirection()
             );

@@ -8,8 +8,14 @@ After publishing, the action commits the next development version and changelog 
 
 ## Unreleased
 
+- A jug, jar, or pot holds liquid, and you can see the liquid when you look inside. Use it on water or lava, flowing or still, or on another fluid, and it fills without using up the source. A waterlogged block or a bubble column does not fill it.
+- The tooltip shows how many millilitres it holds, and the liquid and how full it is when there is some. Water's name is blue.
+- Use a vessel in the air, or right-click a placed one with an empty hand, to look inside and put a lid on or take it off. The lid sits just above the rim, a little wider than the mouth, with a small handle.
+- Shift-right-click a placed piece with an empty hand to pick that piece up. Breaking the block breaks only the piece you are looking at.
+- Pour from one filled vessel into a placed vessel. A bucket does not pour or scoop. With the lid on, you cannot fill the vessel or pour.
+- A placed vessel with the lid off lights the block when its liquid's source block does. Lava does. The lid puts the light out.
 - NeoForge runs on Minecraft 1.20.6, 1.21.1, and 26.3. Fabric runs on 26.3.
 - A pottery wheel spins when you use it with an empty hand. Use a clay ball on it and the clay forms toward the blueprint installed on the wheel. Take the piece off when you want it. The clay ball stays in your hand.
 - Edit a raw pottery template. The left mouse button sets the outer radius and the right sets the inner. Saving turns it into a pottery blueprint. A blueprint can be edited again, set on the wheel, or crafted by itself back into a blank raw template.
-- A sealed shape is a pot, a jar, or a jug from how wide the mouth is next to the widest point. Wider than nine tenths is a pot, under half is a jug, and between those is a jar. The tooltip names the type and how many millilitres it holds. A shape that is not a vessel says Lump.
+- A sealed shape is a pot, a jar, or a jug from how wide the mouth is next to the widest point. Wider than nine tenths is a pot, under half is a jug, and between those is a jar. A blueprint's tooltip names the type and how many millilitres it holds. A shape that is not a vessel says Lump.
 - Finished pottery can sit in four places in one block. Pick a piece back up.

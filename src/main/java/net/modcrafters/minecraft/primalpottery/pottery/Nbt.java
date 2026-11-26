@@ -7,6 +7,20 @@ public final class Nbt {
     private Nbt() {
     }
 
+    public static String getString(CompoundTag tag, String key) {
+        //? if >=26.1 {
+        return tag.getStringOr(key, "");
+        //?} else
+        //return tag.getString(key);
+    }
+
+    public static int getInt(CompoundTag tag, String key) {
+        //? if >=26.1 {
+        return tag.getIntOr(key, 0);
+        //?} else
+        //return tag.getInt(key);
+    }
+
     public static double getDouble(CompoundTag tag, String key) {
         //? if >=26.1 {
         return tag.getDoubleOr(key, 0);

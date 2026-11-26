@@ -8,6 +8,7 @@
   "item.primalpottery.raw_pottery_template": "Raw Pottery Template",
   "tooltip.primalpottery.type": "Type: %s",
   "tooltip.primalpottery.capacity": "Capacity: %s mL",
+  "tooltip.primalpottery.contents": "%s: %s mL",
   "pottery.primalpottery.type.lump": "Lump",
   "pottery.primalpottery.type.pot": "Pot",
   "pottery.primalpottery.type.jar": "Jar",

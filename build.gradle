@@ -34,6 +34,12 @@ dependencies {
 
 tasks.named('test', Test) {
     useJUnitPlatform()
+    // 1.20.6 and 1.21.1 keep en_us.json in the client-extra jar. Bootstrap reads it while validating
+    // creative-tab names. 26.3 packs that file into the game jar, so this tree is empty there.
+    classpath += fileTree(layout.buildDirectory.dir("moddev/artifacts")) {
+        include "*-client-extra*.jar"
+        builtBy "createMinecraftArtifacts"
+    }
 }
 
 // Geometry tests exercise the real PoseStack and arm transforms without launching a client.
