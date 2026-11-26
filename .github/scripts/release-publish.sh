@@ -186,7 +186,7 @@ github_release() {
   if gh release view "$tag" >/dev/null 2>&1; then
     echo "GitHub release ${tag} already exists"
   else
-    local -a args=(release create "$tag" --title "Feast Dominion ${tag#v}" --notes-file "$notes")
+    local -a args=(release create "$tag" --title "Primal Pottery ${tag#v}" --notes-file "$notes")
     [[ "$release_type" == release ]] || args+=(--prerelease)
     gh "${args[@]}"
   fi
@@ -245,15 +245,15 @@ upload() {
     echo "CurseForge file list returned ${code}. A repeated run may upload the same jar again." >&2
   fi
 
-  modrinth_upload "${version}+1.20.6" "Feast Dominion ${version} for NeoForge 1.20.6" neoforge 1.20.6 "$neo_1206"
-  modrinth_upload "${version}+1.21.1" "Feast Dominion ${version} for NeoForge 1.21.1" neoforge 1.21.1 "$neo_121"
-  modrinth_upload "${version}+26.3+fabric" "Feast Dominion ${version} for Fabric 26.3" fabric 26.3 "$fabric_263"
-  modrinth_upload "${version}+26.3+neoforge" "Feast Dominion ${version} for NeoForge 26.3" neoforge 26.3 "$neo_263"
+  modrinth_upload "${version}+1.20.6" "Primal Pottery ${version} for NeoForge 1.20.6" neoforge 1.20.6 "$neo_1206"
+  modrinth_upload "${version}+1.21.1" "Primal Pottery ${version} for NeoForge 1.21.1" neoforge 1.21.1 "$neo_121"
+  modrinth_upload "${version}+26.3+fabric" "Primal Pottery ${version} for Fabric 26.3" fabric 26.3 "$fabric_263"
+  modrinth_upload "${version}+26.3+neoforge" "Primal Pottery ${version} for NeoForge 26.3" neoforge 26.3 "$neo_263"
 
-  curseforge_upload "Feast Dominion ${version} for NeoForge 1.20.6" NeoForge "$neo_1206" "$cf_neo_1206"
-  curseforge_upload "Feast Dominion ${version} for NeoForge 1.21.1" NeoForge "$neo_121" "$cf_neo_121"
-  curseforge_upload "Feast Dominion ${version} for Fabric 26.3" Fabric "$fabric_263" "$cf_fabric_263"
-  curseforge_upload "Feast Dominion ${version} for NeoForge 26.3" NeoForge "$neo_263" "$cf_neo_263"
+  curseforge_upload "Primal Pottery ${version} for NeoForge 1.20.6" NeoForge "$neo_1206" "$cf_neo_1206"
+  curseforge_upload "Primal Pottery ${version} for NeoForge 1.21.1" NeoForge "$neo_121" "$cf_neo_121"
+  curseforge_upload "Primal Pottery ${version} for Fabric 26.3" Fabric "$fabric_263" "$cf_fabric_263"
+  curseforge_upload "Primal Pottery ${version} for NeoForge 26.3" NeoForge "$neo_263" "$cf_neo_263"
 
   github_release "$TAG" "$neo_1206" "$neo_121" "$fabric_263" "$neo_263"
 }

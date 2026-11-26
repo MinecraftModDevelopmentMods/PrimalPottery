@@ -17,3 +17,5 @@ bin/
 /AGENTS.md
 /.cursor/
 /docs/team/
+/.sprite-room/backups/
+/versions/*/logs/

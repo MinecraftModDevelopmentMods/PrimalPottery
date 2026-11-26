@@ -30,7 +30,6 @@ public final class TemplateScreen extends Screen {
     private static final int PROFILE_Y = 10;
     private static final int PROFILE_WIDTH = 100;
     private static final int PROFILE_HEIGHT = 120;
-    private static final double MAX_RADIUS = 5.5;
     private static final int BAR_COLOR = 0x60500000;
 
     private final boolean mainHand;
@@ -176,13 +175,13 @@ public final class TemplateScreen extends Screen {
         if (x < 0 || x >= PROFILE_WIDTH || y < 0 || y >= PROFILE_HEIGHT || this.discs.isEmpty() || (button != 0 && button != 1)) {
             return false;
         }
-        double value = x * MAX_RADIUS / (PROFILE_WIDTH - 1);
+        double value = x * Pottery.MAX_RADIUS / (PROFILE_WIDTH - 1);
         int row = y * this.discs.size() / PROFILE_HEIGHT;
         PotteryDisc disc = this.discs.get(row);
         if (button == 0) {
-            this.discs.set(row, new PotteryDisc(disc.height(), value, disc.innerRadius()));
+            this.discs.set(row, new PotteryDisc(disc.height(), value, Math.min(value, disc.innerRadius())));
         } else {
-            this.discs.set(row, new PotteryDisc(disc.height(), disc.radius(), value));
+            this.discs.set(row, new PotteryDisc(disc.height(), disc.radius(), Math.min(disc.radius(), value)));
         }
         return true;
     }
@@ -240,7 +239,7 @@ public final class TemplateScreen extends Screen {
     }
 
     private static int barWidth(double radius) {
-        return Math.max(0, Math.min(PROFILE_WIDTH, (int) (radius * PROFILE_WIDTH / MAX_RADIUS)));
+        return Math.max(0, Math.min(PROFILE_WIDTH, (int) (radius * PROFILE_WIDTH / Pottery.MAX_RADIUS)));
     }
 
     private static int rowEdge(int row, int rows) {

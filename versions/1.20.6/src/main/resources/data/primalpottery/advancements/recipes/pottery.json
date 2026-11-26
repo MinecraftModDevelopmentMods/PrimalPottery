@@ -1,0 +1,21 @@
+{
+  "parent": "minecraft:recipes/root",
+  "criteria": {
+    "has_clay": {
+      "trigger": "minecraft:inventory_changed",
+      "conditions": {
+        "items": [
+          {
+            "items": "minecraft:clay_ball"
+          }
+        ]
+      }
+    }
+  },
+  "rewards": {
+    "recipes": [
+      "primalpottery:pottery_wheel",
+      "primalpottery:raw_pottery_template"
+    ]
+  }
+}

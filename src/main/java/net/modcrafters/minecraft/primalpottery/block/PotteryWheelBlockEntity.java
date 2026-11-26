@@ -18,6 +18,7 @@ import net.modcrafters.minecraft.primalpottery.pottery.Pottery;
 import org.jspecify.annotations.Nullable;
 
 public class PotteryWheelBlockEntity extends BlockEntity {
+    /** Collision height. The drawn wheel stays one block tall. */
     public static final double BLOCK_HEIGHT = 1.5;
     public static final int TABLE = 0;
     public static final int BIG_WHEEL = 1;
@@ -41,16 +42,19 @@ public class PotteryWheelBlockEntity extends BlockEntity {
     public static AABB box(double minX, double minY, double minZ, double maxX, double maxY, double maxZ) {
         return new AABB(
                 minX / 32.0,
-                minY / 32.0 * BLOCK_HEIGHT,
+                minY / 32.0,
                 minZ / 32.0,
                 maxX / 32.0,
-                maxY / 32.0 * BLOCK_HEIGHT,
+                maxY / 32.0,
                 maxZ / 32.0
         );
     }
 
     public void spin() {
-        this.spinTicks += 24;
+        if (this.level != null && !this.level.isClientSide()) {
+            this.spinTicks += 24;
+            this.sync();
+        }
     }
 
     public void install(Pottery pottery) {
@@ -120,6 +124,14 @@ public class PotteryWheelBlockEntity extends BlockEntity {
         if (this.hasClay && this.clayProgress < 1) {
             this.clayProgress = Math.min(1, this.clayProgress + 0.01F);
         }
+        // Clients animate between server snapshots. Persist the authoritative tick and settle all clients at rest.
+        if (this.level != null && !this.level.isClientSide()) {
+            if (this.spinTicks == 0) {
+                this.sync();
+            } else {
+                this.setChanged();
+            }
+        }
     }
 
     //? if >=26.1 {
@@ -150,6 +162,8 @@ public class PotteryWheelBlockEntity extends BlockEntity {
 
     private CompoundTag saveWheel() {
         CompoundTag tag = new CompoundTag();
+        tag.putInt("spin_ticks", this.spinTicks);
+        tag.putDouble("angle", this.angle);
         tag.putBoolean("clay", this.hasClay);
         tag.putFloat("progress", this.clayProgress);
         if (this.template != null) {
@@ -159,6 +173,9 @@ public class PotteryWheelBlockEntity extends BlockEntity {
     }
 
     private void loadWheel(CompoundTag tag) {
+        this.spinTicks = Math.max(0, Nbt.getInt(tag, "spin_ticks"));
+        double savedAngle = Nbt.getDouble(tag, "angle");
+        this.angle = Double.isFinite(savedAngle) ? savedAngle % (Math.PI * 2) : 0;
         this.hasClay = Nbt.getBoolean(tag, "clay");
         this.clayProgress = Nbt.getFloat(tag, "progress");
         CompoundTag template = Nbt.compound(tag, "template");

@@ -26,7 +26,7 @@ public final class TemplateSync {
     }
 
     public static void apply(Player player, boolean mainHand, List<PotteryDisc> discs) {
-        if (discs.isEmpty() || discs.size() > 64) {
+        if (!Pottery.validProfile(discs)) {
             return;
         }
         InteractionHand hand = mainHand ? InteractionHand.MAIN_HAND : InteractionHand.OFF_HAND;
