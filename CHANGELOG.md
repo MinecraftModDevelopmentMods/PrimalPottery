@@ -8,6 +8,8 @@ After publishing, the action commits the next development version and changelog 
 
 ## Unreleased
 
+## 0.0.1
+
 - Picking up clay unlocks recipes for the pottery wheel and raw template. Mining either half of the wheel returns the wheel in Survival.
 - Nearby players see the wheel spin together, and a wheel keeps its shaping progress when its chunk unloads.
 - The liquid surface in a placed vessel rises as you pour. Placed lids can be changed only within reach.
