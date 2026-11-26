@@ -8,6 +8,9 @@ After publishing, the action commits the next development version and changelog 
 
 ## Unreleased
 
+- Picking up clay unlocks recipes for the pottery wheel and raw template. Mining either half of the wheel returns the wheel in Survival.
+- Nearby players see the wheel spin together, and a wheel keeps its shaping progress when its chunk unloads.
+- The liquid surface in a placed vessel rises as you pour. Placed lids can be changed only within reach.
 - A jug, jar, or pot holds liquid, and you can see the liquid when you look inside. Use it on water or lava, flowing or still, or on another fluid, and it fills without using up the source. A waterlogged block or a bubble column does not fill it.
 - The tooltip shows how many millilitres it holds, and the liquid and how full it is when there is some. Water's name is blue.
 - Use a vessel in the air, or right-click a placed one with an empty hand, to look inside and put a lid on or take it off. The lid sits just above the rim, a little wider than the mouth, with a small handle.

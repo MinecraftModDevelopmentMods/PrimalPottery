@@ -188,7 +188,7 @@ class MeshTest {
         assertTrue(reach(lidded, plateTop, maxY(lidded)) < reach(lidded, rimTop + layer, plateTop));
 
         Mesh cavity = new Mesh();
-        cavity.cavity(0, 0, 0, pottery.discs());
+        cavity.cavity(0, 0, 0, pottery.discs(), pottery.classify().volume());
         assertFalse(cavity.quads().isEmpty());
         assertEquals(pottery.classify().volume(), new Pottery(pottery.discs()).classify().volume());
     }
@@ -201,7 +201,7 @@ class MeshTest {
                 new PotteryDisc(1, 6, 0)
         );
         Mesh mesh = new Mesh();
-        mesh.cavity(0, 0, 0, discs);
+        mesh.cavity(0, 0, 0, discs, new Pottery(discs).classify().volume());
         assertFalse(mesh.quads().isEmpty());
         float rimTop = 7;
         float belly = 0;
@@ -228,8 +228,27 @@ class MeshTest {
         assertEquals(rimTop - Mesh.FLUID_INSET, highest, 0.02);
 
         Mesh skipped = new Mesh();
-        skipped.cavity(0, 0, 0, List.of(new PotteryDisc(2, 4, Mesh.FLUID_INSET), new PotteryDisc(1, 4, 0)));
+        skipped.cavity(0, 0, 0, List.of(new PotteryDisc(2, 4, Mesh.FLUID_INSET), new PotteryDisc(1, 4, 0)), 1);
         assertEquals(0, skipped.quads().size());
+    }
+
+    @Test
+    void partialFillStopsInTheCorrectSlice() {
+        List<PotteryDisc> discs = List.of(new PotteryDisc(2, 4, 2), new PotteryDisc(1, 4, 3), new PotteryDisc(1, 4));
+        for (int amount : new int[] {1, 30}) {
+            Mesh mesh = new Mesh();
+            mesh.cavity(0, 0, 0, discs, amount);
+            double bottomVolume = Pottery.cavityArea(3);
+            double surface = amount <= bottomVolume ? 1 + amount / bottomVolume
+                    : 2 + (amount - bottomVolume) / Pottery.cavityArea(2);
+            float highest = 0;
+            for (Mesh.Quad quad : mesh.quads()) {
+                for (float y : quad.y) {
+                    highest = Math.max(highest, y);
+                }
+            }
+            assertEquals(surface, highest, 0.0001);
+        }
     }
 
     @Test

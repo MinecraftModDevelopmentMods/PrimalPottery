@@ -110,6 +110,13 @@ public final class PotteryGameTests {
         }
         helper.assertTrue(Math.abs(wheel.clayProgress() - 0.1F) < 0.0001F, "clay progress was " + wheel.clayProgress());
 
+        var snapshot = wheel.getUpdateTag(helper.getLevel().registryAccess());
+        var tracked = new PotteryWheelBlockEntity(helper.absolutePos(wheelPos), wheel.getBlockState());
+        tracked.loadCustomOnly(TagValueInput.create(ProblemReporter.DISCARDING, helper.getLevel().registryAccess(), snapshot));
+        helper.assertValueEqual(tracked.spinTicks(), wheel.spinTicks(), "remaining spin in tracking snapshot");
+        helper.assertValueEqual(tracked.angle(), wheel.angle(), "wheel angle in tracking snapshot");
+        helper.assertValueEqual(tracked.clayProgress(), wheel.clayProgress(), "saved shaping progress");
+
         helper.useBlock(wheelPos, player);
         helper.assertFalse(wheel.hasClay(), "clay was not taken off");
         ItemStack shaped = potteryItem(helper);
@@ -139,6 +146,21 @@ public final class PotteryGameTests {
         player.setShiftKeyDown(false);
         helper.assertBlockNotPresent(ModBlocks.POTTERY, floor.above());
         potteryItem(helper);
+
+        ((ServerPlayer) player).setGameMode(GameType.SURVIVAL);
+        helper.assertFalse(player.preventsBlockDrops(), "survival wheel drops disabled");
+        BlockPos absoluteWheel = helper.absolutePos(wheelPos);
+        for (BlockPos broken : List.of(absoluteWheel, absoluteWheel.above())) {
+            helper.setBlock(wheelPos, ModBlocks.WHEEL);
+            helper.getBlockEntity(wheelPos, PotteryWheelBlockEntity.class).tick();
+            ((ServerPlayer) player).gameMode.destroyBlock(broken);
+            helper.assertBlockNotPresent(ModBlocks.WHEEL, wheelPos);
+            helper.assertBlockNotPresent(ModBlocks.WHEEL, wheelPos.above());
+            var drops = helper.getLevel().getEntitiesOfClass(ItemEntity.class, new AABB(absoluteWheel).inflate(2),
+                    item -> item.getItem().is(ModItems.WHEEL));
+            helper.assertValueEqual(drops.stream().mapToInt(item -> item.getItem().getCount()).sum(), 1, "wheel drops from " + broken);
+            drops.forEach(ItemEntity::discard);
+        }
         helper.succeed();
     }
 
@@ -146,6 +168,8 @@ public final class PotteryGameTests {
         ItemStack raw = new ItemStack(ModItems.RAW_TEMPLATE);
         player.setItemInHand(InteractionHand.MAIN_HAND, raw);
         List<PotteryDisc> profile = List.of(new PotteryDisc(1, 4, 1), new PotteryDisc(1, 4));
+        TemplateSync.apply(player, true, List.of(new PotteryDisc(Double.NaN, 4)));
+        helper.assertTrue(player.getMainHandItem().is(ModItems.RAW_TEMPLATE), "invalid edit consumed the raw template");
         TemplateSync.apply(player, true, profile);
 
         ItemStack blueprint = player.getMainHandItem();
@@ -158,6 +182,15 @@ public final class PotteryGameTests {
                 "blueprint is missing its capacity tooltip");
 
         var recipes = helper.getLevel().recipeAccess();
+        CraftingInput blank = CraftingInput.of(2, 1, List.of(new ItemStack(Items.STICK), new ItemStack(Items.CLAY_BALL)));
+        helper.assertTrue(recipes.getRecipeFor(RecipeType.CRAFTING, blank, helper.getLevel()).orElseThrow()
+                .value().assemble(blank).is(ModItems.RAW_TEMPLATE), "survival template recipe");
+        CraftingInput wheel = CraftingInput.of(3, 3, List.of(
+                ItemStack.EMPTY, new ItemStack(Items.STONE_SLAB), ItemStack.EMPTY,
+                new ItemStack(Items.OAK_PLANKS), new ItemStack(Items.BIRCH_PLANKS), new ItemStack(Items.OAK_PLANKS),
+                new ItemStack(Items.STICK), new ItemStack(Items.STONE_SLAB), new ItemStack(Items.STICK)));
+        helper.assertTrue(recipes.getRecipeFor(RecipeType.CRAFTING, wheel, helper.getLevel()).orElseThrow()
+                .value().assemble(wheel).is(ModItems.WHEEL), "survival wheel recipe");
         CraftingInput input = CraftingInput.of(1, 1, List.of(blueprint));
         var recipe = recipes.getRecipeFor(RecipeType.CRAFTING, input, helper.getLevel());
         helper.assertTrue(recipe.isPresent(), "no reset recipe matched the saved blueprint");
@@ -425,6 +458,10 @@ public final class PotteryGameTests {
         assertStored(helper, loaded.contents(0), Fluids.WATER, volume, "saved water");
 
         BlockPos absolute = helper.absolutePos(pots);
+        placeEyes(player, Vec3.atCenterOf(absolute).add(0, 12, 0));
+        PlacedLidSync.apply(player, absolute, 0, false);
+        helper.assertTrue(entity.lid(0), "a distant player removed the lid");
+        placeEyes(player, Vec3.atCenterOf(absolute).add(0, 2, 0));
         PlacedLidSync.apply(player, absolute, 0, false);
         helper.assertFalse(entity.lid(0), "take placed lid");
         helper.assertFalse(entity.lid(1), "neighbor gained a lid");
@@ -449,8 +486,6 @@ public final class PotteryGameTests {
         player.setItemInHand(InteractionHand.MAIN_HAND, ItemStack.EMPTY);
         float progress = state.getDestroyProgress(player, helper.getLevel(), absolute);
         helper.assertTrue(progress > 0.0F && progress < 1.0F, "destroy progress " + progress);
-        // The two-argument getCollisionShape returns the shape cached at startup, which is empty
-        // because no pot exists then. The block methods are what the outline and entity collision use.
         assertFootprint(helper, pots, 0, 1);
 
         Vec3 gap = helper.absoluteVec(new Vec3(pots.getX() + 0.5, pots.getY() + 0.2, pots.getZ() + 0.5));
@@ -653,7 +688,9 @@ public final class PotteryGameTests {
         BlockState state = helper.getBlockState(relative);
         CollisionContext context = CollisionContext.empty();
         var shape = state.getShape(helper.getLevel(), absolute, context);
-        var collision = state.getCollisionShape(helper.getLevel(), absolute, context);
+        var collision = state.getCollisionShape(helper.getLevel(), absolute);
+        helper.assertFalse(Shapes.joinIsNotEmpty(collision, state.getCollisionShape(helper.getLevel(), absolute, context),
+                BooleanOp.NOT_SAME), "cached collision differs from occupied slots");
         for (int index = 0; index < PotteryBlockEntity.SLOTS; index++) {
             var box = Shapes.create(PotteryBlockEntity.box(index));
             helper.assertFalse(Shapes.joinIsNotEmpty(shape, box, BooleanOp.ONLY_SECOND), "outline missing " + index);

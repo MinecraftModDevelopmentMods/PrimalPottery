@@ -7,12 +7,30 @@ import net.minecraft.nbt.ListTag;
 import org.jspecify.annotations.Nullable;
 
 public final class Pottery {
+    public static final int MAX_DISCS = 64;
+    public static final double MAX_RADIUS = 5.5;
+    private static final double MAX_HEIGHT = 12; // Height of the wheel's editable clay blank.
     // The clay mesh uses regular octagons whose vertices lie on the disc radius.
     private static final double CAVITY_AREA_FACTOR = 2 * Math.sqrt(2);
     private final List<PotteryDisc> discs;
 
     public Pottery(List<PotteryDisc> discs) {
         this.discs = List.copyOf(discs);
+    }
+
+    public static boolean validProfile(List<PotteryDisc> discs) {
+        if (discs.isEmpty() || discs.size() > MAX_DISCS) {
+            return false;
+        }
+        double height = 0;
+        for (PotteryDisc disc : discs) {
+            if (!(disc.height() > 0 && disc.radius() >= 0 && disc.radius() <= MAX_RADIUS
+                    && disc.innerRadius() >= 0 && disc.innerRadius() <= disc.radius())) {
+                return false;
+            }
+            height += disc.height();
+        }
+        return height <= MAX_HEIGHT;
     }
 
     public List<PotteryDisc> discs() {
@@ -64,9 +82,13 @@ public final class Pottery {
                 return new Info(type, (int) Math.min(Integer.MAX_VALUE, Math.round(volume)));
             }
             // One profile unit represents one centimeter for the capacity estimate.
-            volume += CAVITY_AREA_FACTOR * inner * inner * disc.height();
+            volume += cavityArea(inner) * disc.height();
         }
         return new Info(PotteryType.LUMP_NO_BOTTOM, 0);
+    }
+
+    public static double cavityArea(double innerRadius) {
+        return CAVITY_AREA_FACTOR * innerRadius * innerRadius;
     }
 
     /** One block pixel in the placed mesh, which uses 32 units per block. */
@@ -154,15 +176,20 @@ public final class Pottery {
     public static Pottery load(CompoundTag tag) {
         List<PotteryDisc> discs = new ArrayList<>();
         ListTag list = Nbt.list(tag, "discs");
+        if (list.size() > MAX_DISCS) {
+            return display();
+        }
         for (int index = 0; index < list.size(); index++) {
             CompoundTag discTag = Nbt.compoundAt(list, index);
-            discs.add(new PotteryDisc(
-                    Nbt.getDouble(discTag, "height"),
-                    Nbt.getDouble(discTag, "radius"),
-                    Nbt.getDouble(discTag, "inner")
-            ));
+            double radius = Nbt.getDouble(discTag, "radius");
+            double inner = Nbt.getDouble(discTag, "inner");
+            // Older editors allowed the inner brush to cross the outer edge, producing a zero-width wall.
+            if (inner > radius && inner <= MAX_RADIUS) {
+                inner = radius;
+            }
+            discs.add(new PotteryDisc(Nbt.getDouble(discTag, "height"), radius, inner));
         }
-        return new Pottery(discs);
+        return validProfile(discs) ? new Pottery(discs) : display();
     }
 
     /** The pot a wheel forms: the installed template, or the plain vase when none is installed. */

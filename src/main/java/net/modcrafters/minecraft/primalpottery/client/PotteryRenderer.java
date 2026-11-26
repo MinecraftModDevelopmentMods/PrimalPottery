@@ -9,7 +9,6 @@ import net.minecraft.client.renderer.texture.TextureAtlasSprite;
 import net.minecraft.client.renderer.blockentity.state.BlockEntityRenderState;
 import net.modcrafters.minecraft.primalpottery.block.PotteryBlockEntity;
 import net.modcrafters.minecraft.primalpottery.pottery.Pottery;
-import net.modcrafters.minecraft.primalpottery.pottery.PotteryDisc;
 import net.modcrafters.minecraft.primalpottery.pottery.VesselContents;
 import net.minecraft.world.phys.AABB;
 
@@ -147,7 +146,15 @@ public final class PotteryRenderer implements BlockEntityRenderer<PotteryBlockEn
             }
             boolean closed = lids != null && index < lids.length && lids[index];
             Mesh pot = new Mesh();
-            placed(index, pot, pottery, closed, false);
+            AABB box = PotteryBlockEntity.box(index);
+            double x = box.getCenter().x * 32;
+            double z = box.getCenter().z * 32;
+            pot.vessel(x, 0, z, pottery.discs(), Mesh.Texture.CLAY);
+            Pottery.Cover cover = closed ? pottery.cover() : null;
+            if (cover != null) {
+                pot.cover(x, 0, z, cover, Mesh.Texture.CLAY);
+            }
+            pot.fitSprite();
             mesh.add(pot);
         }
         return mesh;
@@ -169,7 +176,8 @@ public final class PotteryRenderer implements BlockEntityRenderer<PotteryBlockEn
                 continue;
             }
             Mesh body = new Mesh();
-            placed(index, body, pottery, false, true);
+            AABB box = PotteryBlockEntity.box(index);
+            body.cavity(box.getCenter().x * 32, 0, box.getCenter().z * 32, pottery.discs(), held.amount());
             if (body.quads().isEmpty()) {
                 continue;
             }
@@ -178,20 +186,4 @@ public final class PotteryRenderer implements BlockEntityRenderer<PotteryBlockEn
         return draws;
     }
 
-    private static void placed(int index, Mesh mesh, Pottery pottery, boolean closed, boolean fluid) {
-        AABB box = PotteryBlockEntity.box(index);
-        double centerX = (box.minX + box.maxX) / 2.0 * 32.0;
-        double centerZ = (box.minZ + box.maxZ) / 2.0 * 32.0;
-        double base = box.minY * 32.0;
-        List<PotteryDisc> discs = pottery.discs();
-        if (fluid) {
-            mesh.cavity(centerX, base, centerZ, discs);
-            return;
-        }
-        mesh.vessel(centerX, base, centerZ, discs, Mesh.Texture.CLAY);
-        if (closed && pottery.cover() != null) {
-            mesh.cover(centerX, base, centerZ, pottery.cover(), Mesh.Texture.CLAY);
-        }
-        mesh.fitSprite();
-    }
 }

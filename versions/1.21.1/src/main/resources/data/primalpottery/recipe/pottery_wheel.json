@@ -1,0 +1,22 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "pattern": [
+    " S ",
+    "PPP",
+    "TST"
+  ],
+  "key": {
+    "S": {
+      "item": "minecraft:stone_slab"
+    },
+    "P": {
+      "tag": "minecraft:planks"
+    },
+    "T": {
+      "item": "minecraft:stick"
+    }
+  },
+  "result": {
+    "id": "primalpottery:pottery_wheel"
+  }
+}

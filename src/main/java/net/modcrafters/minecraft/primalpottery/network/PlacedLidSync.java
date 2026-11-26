@@ -24,7 +24,12 @@ public final class PlacedLidSync {
 
     public static void apply(Player player, BlockPos pos, int slot, boolean closed) {
         Level level = player.level();
-        if (!level.mayInteract(player, pos) || !level.getBlockState(pos).is(ModBlocks.POTTERY)) {
+        //? if >=26.1 {
+        boolean inReach = player.isWithinBlockInteractionRange(pos, 0);
+        //?} else
+        //boolean inReach = player.canInteractWithBlock(pos, 0);
+        if (!inReach || player.isSpectator() || !level.hasChunkAt(pos)
+                || !level.mayInteract(player, pos) || !level.getBlockState(pos).is(ModBlocks.POTTERY)) {
             return;
         }
         if (!(level.getBlockEntity(pos) instanceof PotteryBlockEntity pottery)) {

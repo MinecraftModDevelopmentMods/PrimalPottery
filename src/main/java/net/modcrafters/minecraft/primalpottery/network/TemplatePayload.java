@@ -7,6 +7,7 @@ import net.minecraft.network.RegistryFriendlyByteBuf;
 import net.minecraft.network.codec.StreamCodec;
 import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
 import net.modcrafters.minecraft.primalpottery.Ids;
+import net.modcrafters.minecraft.primalpottery.pottery.Pottery;
 import net.modcrafters.minecraft.primalpottery.pottery.PotteryDisc;
 
 /** The sculpted profile, sent to the server so the template item keeps it. */
@@ -30,7 +31,7 @@ public record TemplatePayload(boolean mainHand, List<PotteryDisc> discs) impleme
     private static TemplatePayload read(RegistryFriendlyByteBuf buf) {
         boolean mainHand = buf.readBoolean();
         int count = buf.readVarInt();
-        if (count < 0 || count > 64) {
+        if (count < 0 || count > Pottery.MAX_DISCS) {
             throw new DecoderException("template");
         }
         List<PotteryDisc> discs = new ArrayList<>(count);

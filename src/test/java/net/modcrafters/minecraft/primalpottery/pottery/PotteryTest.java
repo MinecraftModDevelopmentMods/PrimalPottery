@@ -132,6 +132,22 @@ class PotteryTest {
     }
 
     @Test
+    void profilesRejectInvalidDimensionsAndKeepOlderZeroWidthWalls() {
+        for (PotteryDisc invalid : List.of(new PotteryDisc(0, 2), new PotteryDisc(Double.NaN, 2),
+                new PotteryDisc(1, Double.POSITIVE_INFINITY), new PotteryDisc(1, -1), new PotteryDisc(1, 6),
+                new PotteryDisc(1, 2, Double.NaN), new PotteryDisc(1, 2, -1))) {
+            Pottery bad = new Pottery(List.of(invalid));
+            assertFalse(Pottery.validProfile(bad.discs()));
+            assertEquals(Pottery.display().discs(), Pottery.load(bad.save()).discs());
+        }
+        assertFalse(Pottery.validProfile(List.of(new PotteryDisc(7, 2), new PotteryDisc(7, 2))));
+        assertFalse(Pottery.validProfile(java.util.Collections.nCopies(65, new PotteryDisc(0.1, 2))));
+        Pottery crossed = new Pottery(List.of(new PotteryDisc(1, 2, 3), new PotteryDisc(1, 2)));
+        assertFalse(Pottery.validProfile(crossed.discs()));
+        assertEquals(List.of(new PotteryDisc(1, 2, 2), new PotteryDisc(1, 2)), Pottery.load(crossed.save()).discs());
+    }
+
+    @Test
     void nbtRoundTripKeepsTheShape() {
         Pottery pottery = new Pottery(List.of(
                 new PotteryDisc(2, 4, 1),

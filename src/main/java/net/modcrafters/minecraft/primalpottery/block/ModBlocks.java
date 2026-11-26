@@ -27,6 +27,7 @@ public final class ModBlocks {
     public static final PotteryBlock POTTERY = new PotteryBlock(properties(POTTERY_ID)
             .mapColor(MapColor.TERRACOTTA_RED)
             .sound(SoundType.DECORATED_POT)
+            .dynamicShape()
             .strength(0.5F, 3600000.0F)
             .noOcclusion()
             .lightLevel(state -> state.getValue(PotteryBlock.LIGHT)));

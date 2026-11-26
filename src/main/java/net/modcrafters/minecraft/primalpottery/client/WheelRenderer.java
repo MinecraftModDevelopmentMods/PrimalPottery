@@ -49,7 +49,7 @@ public final class WheelRenderer implements BlockEntityRenderer<PotteryWheelBloc
     ) {
         var renderType = net.minecraft.client.renderer.rendertype.RenderTypes.entitySolid(Sprites.blocks());
         poseStack.pushPose();
-        poseStack.scale(1 / 32.0F, (float) (PotteryWheelBlockEntity.BLOCK_HEIGHT / 32.0), 1 / 32.0F);
+        poseStack.scale(1 / 32.0F, 1 / 32.0F, 1 / 32.0F);
         Mesh pattern = state.template == null ? null : pattern(state.template);
         collector.submitCustomGeometry(poseStack, renderType, (pose, buffer) -> {
             Sprites.draw(STAND, buffer, pose, state.lightCoords);
@@ -92,7 +92,7 @@ public final class WheelRenderer implements BlockEntityRenderer<PotteryWheelBloc
             int overlay
     ) {
         poseStack.pushPose();
-        poseStack.scale(1 / 32.0F, (float) (PotteryWheelBlockEntity.BLOCK_HEIGHT / 32.0), 1 / 32.0F);
+        poseStack.scale(1 / 32.0F, 1 / 32.0F, 1 / 32.0F);
         var buffer = buffers.getBuffer(net.minecraft.client.renderer.RenderType.entitySolid(Sprites.blocks()));
         var pose = poseStack.last();
         Sprites.draw(STAND, buffer, pose, light);

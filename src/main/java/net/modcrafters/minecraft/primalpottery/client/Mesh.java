@@ -199,17 +199,21 @@ public final class Mesh {
 
     /**
      * The fluid body. Each open disc is an octagon at its inner radius, inset so it stays inside the clay.
-     * The top face sits just under the top of the rim disc. A slice whose inset radius is not positive is skipped.
+     * Fill from the floor by slice volume. A full vessel's surface sits just below its rim.
      */
-    public void cavity(double centerX, double base, double centerZ, List<PotteryDisc> discs) {
+    public void cavity(double centerX, double base, double centerZ, List<PotteryDisc> discs, int amount) {
         int rim = openRim(discs);
-        if (rim < 0) {
+        if (rim < 0 || amount <= 0) {
             return;
         }
         int end = rim;
+        double capacity = 0;
         while (end < discs.size() && discs.get(end).innerRadius() > 0) {
-            end++;
+            PotteryDisc disc = discs.get(end++);
+            capacity += Pottery.cavityArea(disc.innerRadius()) * disc.height();
         }
+        // Stored capacity is rounded to whole millilitres.
+        double remaining = amount >= Math.round(capacity) ? capacity : amount;
         double y = base;
         for (int index = discs.size() - 1; index >= end; index--) {
             y += Math.max(0, discs.get(index).height());
@@ -218,15 +222,23 @@ public final class Mesh {
             PotteryDisc disc = discs.get(index);
             double height = disc.height();
             double radius = disc.innerRadius() - FLUID_INSET;
-            boolean top = index == rim;
-            double drop = top ? Math.min(FLUID_INSET, Math.max(0, height) * 0.5) : 0;
-            double drawHeight = height - drop;
+            double area = Pottery.cavityArea(disc.innerRadius());
+            double sliceVolume = area * height;
+            boolean top = index == rim || remaining <= sliceVolume;
+            double drawHeight = Math.min(height, remaining / area);
+            if (index == rim) {
+                drawHeight = Math.min(drawHeight, height - Math.min(FLUID_INSET, height * 0.5));
+            }
             if (radius > 0 && drawHeight > 0) {
                 this.ringWalls(centerX, centerZ, y, drawHeight, radius, Texture.CLAY);
                 if (top) {
                     this.cap(centerX, centerZ, y + drawHeight, radius, Texture.CLAY, true);
                 }
             }
+            if (top) {
+                break;
+            }
+            remaining -= sliceVolume;
             y += height;
         }
     }
