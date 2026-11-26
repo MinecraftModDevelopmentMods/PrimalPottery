@@ -3,6 +3,71 @@ plugins {
     id 'net.neoforged.moddev'
 }
 
+// Shared sources are generated with the common Stonecutter constant, so a
+// `//? if neoforge` body in src/ stays commented in the file this project compiles.
+// Splice the break override into that already version-switched PotteryBlock.
+def commonProject = rootProject.project(":${project.name}")
+def patchedPotteryBlock = layout.buildDirectory.file(
+        'generated/pottery-block/net/modcrafters/minecraft/primalpottery/block/PotteryBlock.java'
+)
+def potteryBlockSource = stonecutter.current.isActive
+        ? rootProject.file('src/main/java/net/modcrafters/minecraft/primalpottery/block/PotteryBlock.java')
+        : commonProject.layout.buildDirectory.file(
+                'generated/stonecutter/main/java/net/modcrafters/minecraft/primalpottery/block/PotteryBlock.java'
+        )
+
+// 26.1 added the held tool. 1.20.6 and 1.21.1 still use the shorter override.
+def toolParameter = stonecutter.current.parsed >= '26.1' ? '\n            ItemStack tool,' : ''
+def toolArgument = stonecutter.current.parsed >= '26.1' ? ', tool' : ''
+def destroyedByPlayer = """
+    @Override
+    public boolean onDestroyedByPlayer(
+            BlockState state,
+            Level level,
+            BlockPos pos,
+            Player player,${toolParameter}
+            boolean willHarvest,
+            net.minecraft.world.level.material.FluidState fluid
+    ) {
+        if (breakFocused(level, pos, player)) {
+            return false;
+        }
+        return super.onDestroyedByPlayer(state, level, pos, player${toolArgument}, willHarvest, fluid);
+    }
+"""
+
+tasks.register('neoforgePotteryBlock') {
+    dependsOn(commonProject.tasks.named('stonecutterGenerate'))
+    inputs.file(potteryBlockSource).withPropertyName('potteryBlock')
+    outputs.file(patchedPotteryBlock)
+    doLast {
+        def source = inputs.files.singleFile
+        def text = source.getText('UTF-8')
+        if (text.contains('boolean onDestroyedByPlayer(')) {
+            throw new GradleException("${source} already declares onDestroyedByPlayer")
+        }
+        def end = text.lastIndexOf('}')
+        if (end < 0) {
+            throw new GradleException("${source} has no class body")
+        }
+        def patched = text.substring(0, end) + destroyedByPlayer + text.substring(end)
+        def out = patchedPotteryBlock.get().asFile
+        out.parentFile.mkdirs()
+        out.setText(patched, 'UTF-8')
+    }
+}
+
+tasks.named('compileJava', JavaCompile) {
+    dependsOn('neoforgePotteryBlock')
+    source(layout.buildDirectory.dir('generated/pottery-block'))
+    exclude { element ->
+        def relative = element.path.replace('\\', '/')
+        def absolute = element.file.absolutePath.replace('\\', '/')
+        relative.endsWith('net/modcrafters/minecraft/primalpottery/block/PotteryBlock.java') &&
+                !absolute.contains('/generated/pottery-block/')
+    }
+}
+
 neoForge {
     version = neoforge_version
     def at = rootProject.file('src/main/resources/META-INF/accesstransformer.cfg')

@@ -15,6 +15,10 @@ import net.neoforged.api.distmarker.Dist;
 import net.neoforged.bus.api.IEventBus;
 import net.neoforged.fml.common.Mod;
 import net.neoforged.fml.loading.FMLEnvironment;
+import net.modcrafters.minecraft.primalpottery.network.LidPayload;
+import net.modcrafters.minecraft.primalpottery.network.LidSync;
+import net.modcrafters.minecraft.primalpottery.network.PlacedLidPayload;
+import net.modcrafters.minecraft.primalpottery.network.PlacedLidSync;
 import net.modcrafters.minecraft.primalpottery.network.TemplatePayload;
 import net.modcrafters.minecraft.primalpottery.network.TemplateSync;
 import net.neoforged.neoforge.common.NeoForge;
@@ -39,20 +43,37 @@ public class PrimalPotteryNeoForge {
     }
 
     private static void registerPayloads(RegisterPayloadHandlersEvent event) {
-        event.registrar(Constants.MOD_ID).playToServer(
-                TemplatePayload.TYPE,
-                TemplatePayload.STREAM_CODEC,
-                (payload, context) -> context.enqueueWork(() ->
-                        TemplateSync.apply(context.player(), payload.mainHand(), payload.discs()))
-        );
+        event.registrar(Constants.MOD_ID)
+                .playToServer(
+                        TemplatePayload.TYPE,
+                        TemplatePayload.STREAM_CODEC,
+                        (payload, context) -> context.enqueueWork(() ->
+                                TemplateSync.apply(context.player(), payload.mainHand(), payload.discs()))
+                )
+                .playToServer(
+                        LidPayload.TYPE,
+                        LidPayload.STREAM_CODEC,
+                        (payload, context) -> context.enqueueWork(() ->
+                                LidSync.apply(context.player(), payload.mainHand(), payload.closed()))
+                )
+                .playToServer(
+                        PlacedLidPayload.TYPE,
+                        PlacedLidPayload.STREAM_CODEC,
+                        (payload, context) -> context.enqueueWork(() ->
+                                PlacedLidSync.apply(context.player(), payload.pos(), payload.slot(), payload.closed()))
+                );
     }
 
     private static void registerContent(RegisterEvent event) {
         event.register(Registries.BLOCK, helper -> ModBlocks.register(helper::register));
         event.register(Registries.BLOCK_ENTITY_TYPE, helper -> ModBlockEntities.register(helper::register));
         event.register(Registries.ITEM, helper -> ModItems.register(helper::register));
-        //? if >=26.1
-        event.register(net.minecraft.core.registries.Registries.TEST_INSTANCE_TYPE, helper -> helper.register(net.modcrafters.minecraft.primalpottery.Ids.of("wheel"), PotteryGameTests.codec()));
+        //? if >=26.1 {
+        event.register(net.minecraft.core.registries.Registries.TEST_INSTANCE_TYPE, helper -> {
+            helper.register(net.modcrafters.minecraft.primalpottery.Ids.of("wheel"), PotteryGameTests.codec());
+            helper.register(net.modcrafters.minecraft.primalpottery.Ids.of("vessels"), PotteryGameTests.vesselsCodec());
+        });
+        //?}
         event.register(Registries.CREATIVE_MODE_TAB, ModTab.ID.identifier(), () -> ModTab.titled(CreativeModeTab.builder())
                 .displayItems((parameters, output) -> ModItems.tabContents().forEach(output::accept))
                 .build());

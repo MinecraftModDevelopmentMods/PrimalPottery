@@ -4,6 +4,7 @@ import java.util.ArrayList;
 import java.util.List;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.ListTag;
+import org.jspecify.annotations.Nullable;
 
 public final class Pottery {
     // The clay mesh uses regular octagons whose vertices lie on the disc radius.
@@ -66,6 +67,64 @@ public final class Pottery {
             volume += CAVITY_AREA_FACTOR * inner * inner * disc.height();
         }
         return new Info(PotteryType.LUMP_NO_BOTTOM, 0);
+    }
+
+    /** One block pixel in the placed mesh, which uses 32 units per block. */
+    public static final double PIXEL = 2;
+
+    /**
+     * Where a lid is drawn. {@code top} is the pot's top, {@code layer} is the top disc's height,
+     * and {@code hole} is that disc's inner radius. The lid is not stored on the profile.
+     */
+    public record Cover(double top, double layer, double hole) {
+    }
+
+    /** The rim a lid can cover, or null when the profile has no open mouth. */
+    public @Nullable Cover cover() {
+        int rim = this.rimIndex();
+        if (rim < 0) {
+            return null;
+        }
+        double top = 0;
+        for (PotteryDisc disc : this.discs) {
+            top += disc.height();
+        }
+        PotteryDisc disc = this.discs.get(rim);
+        return new Cover(top, disc.height(), disc.innerRadius());
+    }
+
+    /**
+     * The lid plate: one pixel thick, and one pixel wider than the hole. Null when {@link #cover()} is null.
+     */
+    public @Nullable PotteryDisc lidDisc() {
+        Cover cover = this.cover();
+        if (cover == null) {
+            return null;
+        }
+        return new PotteryDisc(PIXEL, cover.hole() + PIXEL / 2.0, 0);
+    }
+
+    /** The saved discs. A lid is drawn from {@link #cover()} and is not another profile disc. */
+    public List<PotteryDisc> drawDiscs(boolean closed) {
+        return this.discs();
+    }
+
+    private int rimIndex() {
+        for (int index = 0; index < this.discs.size(); index++) {
+            PotteryDisc disc = this.discs.get(index);
+            if (!Double.isFinite(disc.height()) || !Double.isFinite(disc.radius()) || !Double.isFinite(disc.innerRadius())
+                    || disc.height() <= 0 || disc.radius() < 0 || disc.innerRadius() < 0) {
+                return -1;
+            }
+            if (disc.radius() == 0 && disc.innerRadius() == 0) {
+                continue;
+            }
+            if (disc.radius() - disc.innerRadius() < 0.5 || disc.innerRadius() <= 0) {
+                return -1;
+            }
+            return index;
+        }
+        return -1;
     }
 
     private static PotteryType vesselType(double openingRadius, double maxRadius) {

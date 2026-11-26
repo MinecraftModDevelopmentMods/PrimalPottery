@@ -4,6 +4,7 @@ import java.util.List;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.math.Axis;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
+import net.modcrafters.minecraft.primalpottery.pottery.Pottery;
 import net.modcrafters.minecraft.primalpottery.pottery.PotteryDisc;
 //? if <26.1 {
 /*import net.minecraft.client.renderer.MultiBufferSource;
@@ -29,7 +30,16 @@ public final class PotteryPreview {
     }
 
     static void draw(GuiGraphicsExtractor graphics, List<PotteryDisc> discs, int x0, int y0, int x1, int y1) {
-        Model model = model(discs, x1 - x0, y1 - y0);
+        draw(graphics, discs, null, x0, y0, x1, y1);
+    }
+
+    static void draw(GuiGraphicsExtractor graphics, Pottery pottery, boolean closed, int x0, int y0, int x1, int y1) {
+        Pottery.Cover cover = closed ? pottery.cover() : null;
+        draw(graphics, pottery.discs(), cover, x0, y0, x1, y1);
+    }
+
+    private static void draw(GuiGraphicsExtractor graphics, List<PotteryDisc> discs, Pottery.Cover cover, int x0, int y0, int x1, int y1) {
+        Model model = model(discs, x1 - x0, y1 - y0, cover);
         if (model.mesh().quads().isEmpty()) {
             return;
         }
@@ -51,15 +61,24 @@ public final class PotteryPreview {
     }
 
     static Model model(List<PotteryDisc> discs, int width, int height) {
+        return model(discs, width, height, null);
+    }
+
+    static Model model(List<PotteryDisc> discs, int width, int height, Pottery.Cover cover) {
         Mesh mesh = new Mesh();
         mesh.vessel(0, 0, 0, discs, Mesh.Texture.CLAY);
-        mesh.fitSprite();
         double vesselHeight = 0;
         double radius = 0;
         for (PotteryDisc disc : discs) {
             vesselHeight += disc.height();
             radius = Math.max(radius, disc.radius());
         }
+        if (cover != null) {
+            mesh.cover(0, 0, 0, cover, Mesh.Texture.CLAY);
+            vesselHeight += cover.layer() + Pottery.PIXEL * 2;
+            radius = Math.max(radius, cover.hole() + Pottery.PIXEL / 2.0);
+        }
+        mesh.fitSprite();
         // Leave a two-pixel margin on each side at every spin angle.
         double tilt = Math.toRadians(TILT);
         double projectedHeight = vesselHeight * Math.cos(tilt) + 2 * radius * Math.sin(tilt);

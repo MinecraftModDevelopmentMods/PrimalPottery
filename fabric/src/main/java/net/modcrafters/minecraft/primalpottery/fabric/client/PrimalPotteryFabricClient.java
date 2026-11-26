@@ -13,6 +13,10 @@ import net.minecraft.world.phys.HitResult;
 import net.minecraft.world.phys.shapes.Shapes;
 import net.modcrafters.minecraft.primalpottery.block.ModBlockEntities;
 import net.modcrafters.minecraft.primalpottery.client.PotteryPreview;
+import net.modcrafters.minecraft.primalpottery.network.LidPayload;
+import net.modcrafters.minecraft.primalpottery.network.LidSync;
+import net.modcrafters.minecraft.primalpottery.network.PlacedLidPayload;
+import net.modcrafters.minecraft.primalpottery.network.PlacedLidSync;
 import net.modcrafters.minecraft.primalpottery.network.TemplatePayload;
 import net.modcrafters.minecraft.primalpottery.network.TemplateSync;
 import net.modcrafters.minecraft.primalpottery.client.PotteryRenderer;
@@ -23,6 +27,8 @@ public class PrimalPotteryFabricClient implements ClientModInitializer {
     @Override
     public void onInitializeClient() {
         TemplateSync.sender = (mainHand, discs) -> ClientPlayNetworking.send(new TemplatePayload(mainHand, discs));
+        LidSync.sender = (mainHand, closed) -> ClientPlayNetworking.send(new LidPayload(mainHand, closed));
+        PlacedLidSync.sender = (pos, slot, closed) -> ClientPlayNetworking.send(new PlacedLidPayload(pos, slot, closed));
         PictureInPictureRendererRegistry.register(context -> new PotteryPreview.Renderer());
         PotteryPreview.SINK = (graphics, state) -> graphics.guiRenderState.addPicturesInPictureState(state);
         BlockEntityRendererRegistry.register(ModBlockEntities.WHEEL, context -> new WheelRenderer());

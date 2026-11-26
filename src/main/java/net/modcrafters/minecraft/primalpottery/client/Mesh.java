@@ -4,9 +4,12 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import net.minecraft.core.Direction;
+import net.modcrafters.minecraft.primalpottery.pottery.Pottery;
 import net.modcrafters.minecraft.primalpottery.pottery.PotteryDisc;
 
 public final class Mesh {
+    static final double FLUID_INSET = 0.05;
+
     public enum Texture {
         PLANKS,
         STONE,
@@ -120,6 +123,18 @@ public final class Mesh {
         }
     }
 
+    /**
+     * A lid one layer above the pot, one pixel wider than the hole, with a small handle in the middle.
+     */
+    public void cover(double centerX, double base, double centerZ, Pottery.Cover cover, Texture texture) {
+        double y = base + cover.top() + cover.layer();
+        double radius = cover.hole() + Pottery.PIXEL / 2.0;
+        double thickness = Pottery.PIXEL;
+        this.cylinder(centerX, y, centerZ, thickness, radius, 0, texture);
+        double handle = Math.min(thickness, radius / 2.0);
+        this.cylinder(centerX, y + thickness, centerZ, thickness, handle, 0, texture);
+    }
+
     private static double clayRadius(PotteryDisc disc) {
         return disc.radius() > Math.max(0, disc.innerRadius()) ? disc.radius() : 0;
     }
@@ -180,6 +195,73 @@ public final class Mesh {
 
     private static double cut(double backX, double heel, double reach, double radius) {
         return backX - heel - (reach - radius);
+    }
+
+    /**
+     * The fluid body. Each open disc is an octagon at its inner radius, inset so it stays inside the clay.
+     * The top face sits just under the top of the rim disc. A slice whose inset radius is not positive is skipped.
+     */
+    public void cavity(double centerX, double base, double centerZ, List<PotteryDisc> discs) {
+        int rim = openRim(discs);
+        if (rim < 0) {
+            return;
+        }
+        int end = rim;
+        while (end < discs.size() && discs.get(end).innerRadius() > 0) {
+            end++;
+        }
+        double y = base;
+        for (int index = discs.size() - 1; index >= end; index--) {
+            y += Math.max(0, discs.get(index).height());
+        }
+        for (int index = end - 1; index >= rim; index--) {
+            PotteryDisc disc = discs.get(index);
+            double height = disc.height();
+            double radius = disc.innerRadius() - FLUID_INSET;
+            boolean top = index == rim;
+            double drop = top ? Math.min(FLUID_INSET, Math.max(0, height) * 0.5) : 0;
+            double drawHeight = height - drop;
+            if (radius > 0 && drawHeight > 0) {
+                this.ringWalls(centerX, centerZ, y, drawHeight, radius, Texture.CLAY);
+                if (top) {
+                    this.cap(centerX, centerZ, y + drawHeight, radius, Texture.CLAY, true);
+                }
+            }
+            y += height;
+        }
+    }
+
+    private static int openRim(List<PotteryDisc> discs) {
+        int rim = -1;
+        for (int index = 0; index < discs.size(); index++) {
+            PotteryDisc disc = discs.get(index);
+            if (!Double.isFinite(disc.height()) || !Double.isFinite(disc.radius()) || !Double.isFinite(disc.innerRadius())
+                    || disc.height() <= 0 || disc.radius() < 0 || disc.innerRadius() < 0) {
+                return -1;
+            }
+            if (disc.radius() == 0 && disc.innerRadius() == 0) {
+                continue;
+            }
+            if (disc.radius() - disc.innerRadius() < 0.5) {
+                return -1;
+            }
+            if (rim < 0) {
+                rim = index;
+            }
+        }
+        if (rim < 0 || discs.get(rim).innerRadius() == 0) {
+            return -1;
+        }
+        return rim;
+    }
+
+    private void ringWalls(double centerX, double centerZ, double bottom, double height, double radius, Texture texture) {
+        double start = Math.PI / 8.0;
+        double step = Math.PI / 4.0;
+        for (int side = 0; side < 8; side++) {
+            double a0 = start + side * step;
+            this.wall(centerX, centerZ, bottom, height, radius, a0, a0 + step, texture, true);
+        }
     }
 
     public void fitSprite() {

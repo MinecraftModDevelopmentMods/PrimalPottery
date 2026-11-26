@@ -6,6 +6,10 @@ import net.minecraft.world.phys.shapes.Shapes;
 import net.modcrafters.minecraft.primalpottery.block.ModBlockEntities;
 import net.modcrafters.minecraft.primalpottery.client.PotteryRenderer;
 import net.modcrafters.minecraft.primalpottery.client.WheelRenderer;
+import net.modcrafters.minecraft.primalpottery.network.LidPayload;
+import net.modcrafters.minecraft.primalpottery.network.LidSync;
+import net.modcrafters.minecraft.primalpottery.network.PlacedLidPayload;
+import net.modcrafters.minecraft.primalpottery.network.PlacedLidSync;
 import net.modcrafters.minecraft.primalpottery.network.TemplatePayload;
 import net.modcrafters.minecraft.primalpottery.network.TemplateSync;
 //? if >=26.1
@@ -40,6 +44,20 @@ public final class PrimalPotteryNeoForgeClient {
             ClientPacketDistributor.sendToServer(new TemplatePayload(mainHand, discs));
             //?} else {
             /*PacketDistributor.sendToServer(new TemplatePayload(mainHand, discs));
+            *///?}
+        };
+        LidSync.sender = (mainHand, closed) -> {
+            //? if >=26.1 {
+            ClientPacketDistributor.sendToServer(new LidPayload(mainHand, closed));
+            //?} else {
+            /*PacketDistributor.sendToServer(new LidPayload(mainHand, closed));
+            *///?}
+        };
+        PlacedLidSync.sender = (pos, slot, closed) -> {
+            //? if >=26.1 {
+            ClientPacketDistributor.sendToServer(new PlacedLidPayload(pos, slot, closed));
+            //?} else {
+            /*PacketDistributor.sendToServer(new PlacedLidPayload(pos, slot, closed));
             *///?}
         };
         modBus.addListener(PrimalPotteryNeoForgeClient::renderers);
