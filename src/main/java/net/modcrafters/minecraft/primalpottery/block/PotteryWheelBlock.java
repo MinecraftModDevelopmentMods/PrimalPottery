@@ -29,7 +29,9 @@ import net.minecraft.world.phys.shapes.CollisionContext;
 import net.minecraft.world.phys.shapes.Shapes;
 import net.minecraft.world.phys.shapes.VoxelShape;
 import net.modcrafters.minecraft.primalpottery.item.ModItems;
+import net.modcrafters.minecraft.primalpottery.item.RawPotteryItem;
 import net.modcrafters.minecraft.primalpottery.item.TemplateItem;
+import net.modcrafters.minecraft.primalpottery.pottery.Pottery;
 import net.modcrafters.minecraft.primalpottery.pottery.PartHits;
 import net.modcrafters.minecraft.primalpottery.pottery.Placement;
 import org.jspecify.annotations.Nullable;
@@ -112,6 +114,15 @@ public class PotteryWheelBlock extends Block implements EntityBlock {
         }
         removingPartner = true;
         try {
+            if (drop && !level.isClientSide()) {
+                BlockPos lower = state.getValue(HALF) == LOWER ? pos : other;
+                if (level.getBlockEntity(lower) instanceof PotteryWheelBlockEntity wheel) {
+                    ItemStack forming = wheel.removeForming();
+                    if (!forming.isEmpty()) {
+                        popResource(level, lower, forming);
+                    }
+                }
+            }
             if (drop && !level.isClientSide() && state.getValue(HALF) == UPPER) {
                 popResource(level, other, new ItemStack(ModItems.WHEEL));
             }
@@ -203,10 +214,24 @@ public class PotteryWheelBlock extends Block implements EntityBlock {
             wheel.takeClay(player);
             return InteractionResult.SUCCESS;
         }
-        if (stack.is(Items.CLAY_BALL)) {
-            wheel.startClay();
-            return InteractionResult.SUCCESS;
+        Pottery start = acceptedStart(stack);
+        if (start == null && !stack.is(Items.CLAY_BALL)) {
+            return InteractionResult.PASS;
         }
-        return InteractionResult.PASS;
+        if (!level.isClientSide()) {
+            wheel.startClay(stack.is(Items.CLAY_BALL) ? null : start);
+            if (player != null && !player.hasInfiniteMaterials()) {
+                stack.shrink(1);
+            }
+        }
+        return InteractionResult.SUCCESS;
+    }
+
+    /** A clay ball, or the profile of undyed raw pottery. Null when the stack cannot start a piece. */
+    private static @Nullable Pottery acceptedStart(ItemStack stack) {
+        if (stack.is(Items.CLAY_BALL)) {
+            return null;
+        }
+        return RawPotteryItem.wheelProfile(stack);
     }
 }

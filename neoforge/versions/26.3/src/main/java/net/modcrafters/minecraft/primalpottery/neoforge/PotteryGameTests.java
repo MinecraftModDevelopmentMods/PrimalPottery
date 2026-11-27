@@ -22,9 +22,14 @@ import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
 import net.minecraft.world.entity.item.ItemEntity;
 import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.item.DyeColor;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.Items;
+import net.minecraft.world.item.crafting.AbstractCookingRecipe;
+import net.minecraft.world.item.crafting.CraftingRecipe;
+import net.minecraft.world.item.crafting.RecipeBookCategories;
+import net.minecraft.world.item.crafting.SingleRecipeInput;
 import net.minecraft.world.item.TooltipFlag;
 import net.minecraft.world.item.context.UseOnContext;
 import net.minecraft.world.item.crafting.CraftingInput;
@@ -50,14 +55,16 @@ import net.modcrafters.minecraft.primalpottery.block.PotteryBlockEntity;
 import net.modcrafters.minecraft.primalpottery.block.PotteryWheelBlockEntity;
 import net.modcrafters.minecraft.primalpottery.item.ModItems;
 import net.modcrafters.minecraft.primalpottery.item.PotteryItem;
+import net.modcrafters.minecraft.primalpottery.item.RawPotteryItem;
 import net.modcrafters.minecraft.primalpottery.item.TemplateItem;
+import net.modcrafters.minecraft.primalpottery.recipe.FirePotteryRecipe;
+import net.modcrafters.minecraft.primalpottery.recipe.PaintPotteryRecipe;
 import net.modcrafters.minecraft.primalpottery.network.LidSync;
 import net.modcrafters.minecraft.primalpottery.network.PlacedLidSync;
 import net.modcrafters.minecraft.primalpottery.network.TemplateSync;
 import net.modcrafters.minecraft.primalpottery.pottery.Nbt;
 import net.modcrafters.minecraft.primalpottery.pottery.Pottery;
 import net.modcrafters.minecraft.primalpottery.pottery.PotteryDisc;
-import net.modcrafters.minecraft.primalpottery.pottery.PotteryType;
 import net.modcrafters.minecraft.primalpottery.pottery.VesselContents;
 import net.neoforged.neoforge.event.RegisterGameTestsEvent;
 
@@ -117,16 +124,31 @@ public final class PotteryGameTests {
         helper.assertValueEqual(tracked.angle(), wheel.angle(), "wheel angle in tracking snapshot");
         helper.assertValueEqual(tracked.clayProgress(), wheel.clayProgress(), "saved shaping progress");
 
+        float progress = wheel.clayProgress();
         helper.useBlock(wheelPos, player);
         helper.assertFalse(wheel.hasClay(), "clay was not taken off");
-        ItemStack shaped = potteryItem(helper);
-        helper.assertValueEqual(PotteryItem.read(shaped).discs().size(), 5, "wheel discs");
-        helper.assertValueEqual(PotteryItem.read(shaped).classify().type(), PotteryType.LUMP, "wheel pottery");
+        helper.assertTrue(wheel.start() == null, "start was not cleared");
+        ItemStack shaped = rawItem(helper);
+        helper.assertValueEqual(PotteryItem.read(shaped).discs(), Pottery.shaped(null, Pottery.formed(null), progress).discs(), "early raw profile");
 
         BlockPos floor = new BlockPos(3, 1, 1);
         helper.setBlock(floor, Blocks.STONE);
         player.setItemInHand(InteractionHand.MAIN_HAND, shaped.copy());
         shaped.useOn(new UseOnContext(
+                player,
+                InteractionHand.MAIN_HAND,
+                new BlockHitResult(
+                        helper.absoluteVec(new Vec3(3.2, 2.0, 1.2)),
+                        net.minecraft.core.Direction.UP,
+                        helper.absolutePos(floor),
+                        false
+                )
+        ));
+        helper.assertBlockNotPresent(ModBlocks.POTTERY, floor.above());
+
+        ItemStack fired = PotteryItem.stack(Pottery.wheelShape());
+        player.setItemInHand(InteractionHand.MAIN_HAND, fired.copy());
+        fired.useOn(new UseOnContext(
                 player,
                 InteractionHand.MAIN_HAND,
                 new BlockHitResult(
@@ -146,6 +168,7 @@ public final class PotteryGameTests {
         player.setShiftKeyDown(false);
         helper.assertBlockNotPresent(ModBlocks.POTTERY, floor.above());
         potteryItem(helper);
+        forming(helper, player, wheelPos);
 
         ((ServerPlayer) player).setGameMode(GameType.SURVIVAL);
         helper.assertFalse(player.preventsBlockDrops(), "survival wheel drops disabled");
@@ -202,6 +225,236 @@ public final class PotteryGameTests {
                 "raw templates should not match the reset recipe");
     }
 
+    private static void forming(GameTestHelper helper, Player player, BlockPos wheelPos) {
+        discardPottery(helper);
+        PotteryWheelBlockEntity wheel = helper.getBlockEntity(wheelPos, PotteryWheelBlockEntity.class);
+        ServerPlayer server = (ServerPlayer) player;
+
+        server.setGameMode(GameType.SURVIVAL);
+        ItemStack clay = new ItemStack(Items.CLAY_BALL, 2);
+        offer(helper, player, wheelPos, clay);
+        helper.assertValueEqual(clay.getCount(), 1, "survival clay count");
+        helper.assertTrue(wheel.hasClay(), "survival clay");
+        helper.assertValueEqual(wheel.clayProgress(), 0.0F, "survival progress");
+        helper.assertTrue(wheel.start() == null, "clay start");
+        take(helper, player, wheelPos);
+        discardPottery(helper);
+
+        server.setGameMode(GameType.CREATIVE);
+        ItemStack creative = new ItemStack(Items.CLAY_BALL, 2);
+        offer(helper, player, wheelPos, creative);
+        helper.assertValueEqual(creative.getCount(), 2, "creative clay count");
+        helper.assertTrue(wheel.hasClay() && wheel.start() == null, "creative blank");
+        take(helper, player, wheelPos);
+        discardPottery(helper);
+
+        server.setGameMode(GameType.SURVIVAL);
+        Pottery returned = new Pottery(List.of(new PotteryDisc(1, 2, 0)));
+        ItemStack raw = RawPotteryItem.stack(returned);
+        offer(helper, player, wheelPos, raw);
+        helper.assertTrue(raw.isEmpty(), "raw pottery was not consumed");
+        helper.assertValueEqual(wheel.start().discs(), returned.discs(), "returned start");
+        take(helper, player, wheelPos);
+        discardPottery(helper);
+
+        ItemStack blue = RawPotteryItem.stack(returned, "blue");
+        offer(helper, player, wheelPos, blue);
+        helper.assertFalse(wheel.hasClay(), "dyed raw started the wheel");
+        helper.assertValueEqual(blue.getCount(), 1, "dyed raw count");
+        ItemStack firedStack = new ItemStack(ModItems.POTTERY);
+        offer(helper, player, wheelPos, firedStack);
+        helper.assertFalse(wheel.hasClay(), "fired pottery started the wheel");
+        helper.assertValueEqual(firedStack.getCount(), 1, "fired count");
+        ItemStack missing = new ItemStack(ModItems.RAW_POTTERY);
+        offer(helper, player, wheelPos, missing);
+        helper.assertFalse(wheel.hasClay(), "missing profile started the wheel");
+        helper.assertValueEqual(missing.getCount(), 1, "missing profile count");
+        ItemStack invalid = RawPotteryItem.stack(new Pottery(List.of(new PotteryDisc(0, 2))));
+        offer(helper, player, wheelPos, invalid);
+        helper.assertFalse(wheel.hasClay(), "invalid profile started the wheel");
+        helper.assertValueEqual(invalid.getCount(), 1, "invalid profile count");
+
+        server.setGameMode(GameType.CREATIVE);
+        offer(helper, player, wheelPos, new ItemStack(Items.CLAY_BALL));
+        shapeFor(helper, player, wheelPos, wheel, 50);
+        float halfway = wheel.clayProgress();
+        take(helper, player, wheelPos);
+        ItemStack half = rawItem(helper);
+        helper.assertValueEqual(PotteryItem.read(half).discs(), Pottery.shaped(null, Pottery.formed(null), halfway).discs(), "halfway raw");
+        discardPottery(helper);
+
+        offer(helper, player, wheelPos, new ItemStack(Items.CLAY_BALL));
+        finish(helper, player, wheelPos, wheel);
+        float stopped = wheel.angle();
+        var finished = wheel.getUpdateTag(helper.getLevel().registryAccess());
+        var loaded = new PotteryWheelBlockEntity(helper.absolutePos(wheelPos), wheel.getBlockState());
+        loaded.loadCustomOnly(TagValueInput.create(ProblemReporter.DISCARDING, helper.getLevel().registryAccess(), finished));
+        helper.assertValueEqual(loaded.spinTicks(), 0, "stopped spin");
+        helper.assertValueEqual(loaded.clayProgress(), 1.0F, "stopped progress");
+        helper.assertValueEqual(loaded.angle(), stopped, "stopped angle");
+        aim(player, partCenter(helper, wheelPos, PotteryWheelBlockEntity.BIG_WHEEL));
+        helper.useBlock(wheelPos, player);
+        helper.assertValueEqual(wheel.spinTicks(), 0, "finished piece kept spinning");
+        take(helper, player, wheelPos);
+        ItemStack done = rawItem(helper);
+        helper.assertValueEqual(PotteryItem.read(done).discs(), Pottery.formed(null).discs(), "finished raw");
+        discardPottery(helper);
+        aim(player, partCenter(helper, wheelPos, PotteryWheelBlockEntity.BIG_WHEEL));
+        helper.useBlock(wheelPos, player);
+        helper.assertValueEqual(wheel.spinTicks(), 24, "spin after take");
+
+        offer(helper, player, wheelPos, new ItemStack(Items.CLAY_BALL));
+        finish(helper, player, wheelPos, wheel);
+        CompoundTag saved = wheel.getUpdateTag(helper.getLevel().registryAccess());
+        CompoundTag wheelTag = Nbt.compound(saved, "wheel");
+        wheelTag.putInt("spin_ticks", 8);
+        saved.put("wheel", wheelTag);
+        wheel.loadCustomOnly(TagValueInput.create(ProblemReporter.DISCARDING, helper.getLevel().registryAccess(), saved));
+        helper.assertValueEqual(wheel.spinTicks(), 8, "loaded leftover spin");
+        float resting = wheel.angle();
+        wheel.tick();
+        helper.assertValueEqual(wheel.spinTicks(), 0, "leftover spin cleared");
+        helper.assertValueEqual(wheel.clayProgress(), 1.0F, "leftover progress");
+        helper.assertValueEqual(wheel.angle(), resting, "leftover angle");
+        take(helper, player, wheelPos);
+        discardPottery(helper);
+
+        Pottery template = new Pottery(List.of(new PotteryDisc(1, 4, 2)));
+        wheel.install(template);
+        Pottery again = new Pottery(List.of(new PotteryDisc(1, 3, 1)));
+        server.setGameMode(GameType.SURVIVAL);
+        ItemStack back = RawPotteryItem.stack(again);
+        offer(helper, player, wheelPos, back);
+        helper.assertTrue(back.isEmpty(), "reshape was not consumed");
+        helper.assertValueEqual(wheel.start().discs(), again.discs(), "reshape start");
+        shapeFor(helper, player, wheelPos, wheel, 50);
+        float toward = wheel.clayProgress();
+        take(helper, player, wheelPos);
+        helper.assertValueEqual(PotteryItem.read(rawItem(helper)).discs(), Pottery.shaped(again, template, toward).discs(), "reshape drop");
+        discardPottery(helper);
+        offer(helper, player, wheelPos, RawPotteryItem.stack(again));
+        finish(helper, player, wheelPos, wheel);
+        take(helper, player, wheelPos);
+        helper.assertValueEqual(PotteryItem.read(rawItem(helper)).discs(), template.discs(), "reshape finished");
+        discardPottery(helper);
+        wheel.clearTemplate();
+
+        var recipes = helper.getLevel().recipeAccess();
+        Pottery profile = new Pottery(List.of(new PotteryDisc(1, 2, 0)));
+        ItemStack unpainted = RawPotteryItem.stack(profile);
+        CraftingInput grid = CraftingInput.of(2, 1, List.of(unpainted, new ItemStack(Items.DYE.pick(DyeColor.BLUE))));
+        var paintHolder = recipes.getRecipeFor(RecipeType.CRAFTING, grid, helper.getLevel()).orElseThrow();
+        helper.assertTrue(paintHolder.id().identifier().equals(Ids.of("paint_pottery")), "paint id");
+        helper.assertTrue(paintHolder.value() instanceof CraftingRecipe, "paint is not a crafting recipe");
+        CraftingRecipe paint = (CraftingRecipe) paintHolder.value();
+        helper.assertTrue(paint.isSpecial(), "paint is not special");
+        helper.assertTrue(paint.getSerializer() == PaintPotteryRecipe.SERIALIZER, "paint serializer");
+        ItemStack painted = paint.assemble(grid);
+        helper.assertValueEqual(PotteryItem.read(painted).discs(), profile.discs(), "painted discs");
+        helper.assertValueEqual(PotteryItem.dye(painted), "blue", "painted dye");
+        offer(helper, player, wheelPos, painted);
+        helper.assertFalse(wheel.hasClay(), "painted raw started the wheel");
+        helper.assertValueEqual(painted.getCount(), 1, "painted raw count");
+
+        var fireHolder = recipes.getRecipeFor(RecipeType.SMELTING, new SingleRecipeInput(painted), helper.getLevel()).orElseThrow();
+        helper.assertTrue(recipes.getRecipeFor(RecipeType.SMELTING, new SingleRecipeInput(unpainted), helper.getLevel()).isPresent(), "undyed raw smelts");
+        helper.assertTrue(fireHolder.value() instanceof AbstractCookingRecipe, "fire is not a cooking recipe");
+        AbstractCookingRecipe fire = (AbstractCookingRecipe) fireHolder.value();
+        helper.assertValueEqual(fire.cookingTime(), 200, "cooking time");
+        helper.assertValueEqual(fire.experience(), 0.1F, "experience");
+        helper.assertTrue(fire.getType() == RecipeType.SMELTING, "fire type");
+        helper.assertTrue(fire.recipeBookCategory() == RecipeBookCategories.FURNACE_MISC, "fire book");
+        helper.assertTrue(fire.getSerializer() == FirePotteryRecipe.SERIALIZER, "fire serializer");
+        helper.assertTrue(recipes.getRecipeFor(RecipeType.SMELTING, new SingleRecipeInput(new ItemStack(ModItems.POTTERY)), helper.getLevel()).isEmpty(), "fired pottery smelts");
+        ItemStack smelted = fire.assemble(new SingleRecipeInput(painted));
+        helper.assertTrue(smelted.is(ModItems.POTTERY), "smelted item");
+        helper.assertValueEqual(PotteryItem.read(smelted).discs(), profile.discs(), "smelted discs");
+        helper.assertValueEqual(PotteryItem.dye(smelted), "blue", "smelted dye");
+        helper.assertTrue(PotteryItem.contents(smelted).isEmpty(), "smelted contents");
+        helper.assertFalse(PotteryItem.lid(smelted), "smelted lid");
+
+        BlockPos dyeFloor = new BlockPos(4, 1, 3);
+        helper.setBlock(dyeFloor, Blocks.STONE);
+        holdStack(player, PotteryItem.stack(profile, VesselContents.EMPTY, true, "blue"));
+        clickOn(helper, player, dyeFloor, new Vec3(dyeFloor.getX() + 0.2, dyeFloor.getY() + 1, dyeFloor.getZ() + 0.2), Direction.UP);
+        BlockPos dyedPots = dyeFloor.above();
+        helper.assertBlockPresent(ModBlocks.POTTERY, dyedPots);
+        PotteryBlockEntity dyed = helper.getBlockEntity(dyedPots, PotteryBlockEntity.class);
+        helper.assertValueEqual(dyed.dye(0), "blue", "placed dye");
+        helper.assertTrue(dyed.lid(0), "placed lid");
+        CompoundTag kept = dyed.saveCustomOnly(helper.getLevel().registryAccess());
+        PotteryBlockEntity reloaded = new PotteryBlockEntity(dyed.getBlockPos(), dyed.getBlockState());
+        reloaded.loadCustomOnly(TagValueInput.create(ProblemReporter.DISCARDING, helper.getLevel().registryAccess(), kept));
+        helper.assertValueEqual(reloaded.dye(0), "blue", "saved dye");
+        clearPottery(helper);
+        player.setItemInHand(InteractionHand.MAIN_HAND, ItemStack.EMPTY);
+        player.setShiftKeyDown(true);
+        useItemOn(helper, player, dyedPots, slotPoint(dyedPots, 0), Direction.UP);
+        player.setShiftKeyDown(false);
+        helper.assertValueEqual(PotteryItem.dye(potteryItemNear(helper, dyedPots)), "blue", "picked dye");
+
+        server.setGameMode(GameType.SURVIVAL);
+        helper.setBlock(wheelPos, ModBlocks.WHEEL);
+        PotteryWheelBlockEntity breaking = helper.getBlockEntity(wheelPos, PotteryWheelBlockEntity.class);
+        breaking.tick();
+        offer(helper, player, wheelPos, new ItemStack(Items.CLAY_BALL));
+        helper.assertTrue(breaking.hasClay(), "break setup");
+        discardPottery(helper);
+        BlockPos absolute = helper.absolutePos(wheelPos);
+        ((ServerPlayer) player).gameMode.destroyBlock(absolute);
+        helper.assertValueEqual(count(helper, absolute, ModItems.RAW_POTTERY), 1, "break raw");
+        helper.assertValueEqual(count(helper, absolute, ModItems.WHEEL), 1, "break wheel");
+        discardPottery(helper);
+        server.setGameMode(GameType.SURVIVAL);
+    }
+
+    private static void offer(GameTestHelper helper, Player player, BlockPos wheelPos, ItemStack stack) {
+        player.setShiftKeyDown(false);
+        player.setItemInHand(InteractionHand.MAIN_HAND, stack);
+        aim(player, partCenter(helper, wheelPos, PotteryWheelBlockEntity.SMALL_WHEEL));
+        helper.useBlock(wheelPos, player);
+    }
+
+    private static void take(GameTestHelper helper, Player player, BlockPos wheelPos) {
+        aim(player, partCenter(helper, wheelPos, PotteryWheelBlockEntity.SMALL_WHEEL));
+        helper.useBlock(wheelPos, player);
+    }
+
+    private static void shapeFor(GameTestHelper helper, Player player, BlockPos wheelPos, PotteryWheelBlockEntity wheel, int ticks) {
+        for (int tick = 0; tick < ticks; tick++) {
+            if (wheel.spinTicks() == 0) {
+                aim(player, partCenter(helper, wheelPos, PotteryWheelBlockEntity.BIG_WHEEL));
+                helper.useBlock(wheelPos, player);
+            }
+            wheel.tick();
+        }
+    }
+
+    private static void finish(GameTestHelper helper, Player player, BlockPos wheelPos, PotteryWheelBlockEntity wheel) {
+        int guard = 0;
+        while (wheel.clayProgress() < 1.0F && guard++ < 200) {
+            shapeFor(helper, player, wheelPos, wheel, 1);
+        }
+        helper.assertValueEqual(wheel.clayProgress(), 1.0F, "shaping did not finish");
+        helper.assertValueEqual(wheel.spinTicks(), 0, "shaping did not stop");
+    }
+
+    private static int count(GameTestHelper helper, BlockPos absolute, Item item) {
+        return helper.getLevel().getEntitiesOfClass(ItemEntity.class, new AABB(absolute).inflate(2), entity -> entity.getItem().is(item))
+                .stream()
+                .mapToInt(entity -> entity.getItem().getCount())
+                .sum();
+    }
+
+    private static void discardPottery(GameTestHelper helper) {
+        BlockPos min = helper.absolutePos(BlockPos.ZERO);
+        BlockPos max = helper.absolutePos(new BlockPos(16, 8, 16));
+        AABB box = new AABB(min.getX() - 2, min.getY() - 2, min.getZ() - 2, max.getX() + 2, max.getY() + 2, max.getZ() + 2);
+        helper.getLevel().getEntitiesOfClass(ItemEntity.class, box, entity ->
+                entity.getItem().is(ModItems.POTTERY) || entity.getItem().is(ModItems.RAW_POTTERY) || entity.getItem().is(ModItems.WHEEL)
+        ).forEach(ItemEntity::discard);
+    }
+
     private static ItemStack potteryItem(GameTestHelper helper) {
         var items = helper.getLevel().getEntitiesOfClass(
                 ItemEntity.class,
@@ -209,6 +462,16 @@ public final class PotteryGameTests {
                 entity -> entity.getItem().is(ModItems.POTTERY)
         );
         helper.assertFalse(items.isEmpty(), "pottery item was not dropped");
+        return items.getFirst().getItem();
+    }
+
+    private static ItemStack rawItem(GameTestHelper helper) {
+        var items = helper.getLevel().getEntitiesOfClass(
+                ItemEntity.class,
+                helper.getBounds().inflate(8),
+                entity -> entity.getItem().is(ModItems.RAW_POTTERY)
+        );
+        helper.assertFalse(items.isEmpty(), "raw pottery was not dropped");
         return items.getFirst().getItem();
     }
 

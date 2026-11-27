@@ -34,21 +34,22 @@ public final class PotteryScreen extends Screen {
     private final int slot;
     private final Pottery pottery;
     private final VesselContents contents;
+    private final @Nullable String dye;
     private boolean closed;
     private Button lidButton;
     private int left;
     private int top;
 
-    public PotteryScreen(boolean mainHand, Pottery pottery, VesselContents contents, boolean closed) {
-        this(mainHand, null, 0, pottery, contents, closed);
+    public PotteryScreen(boolean mainHand, Pottery pottery, VesselContents contents, boolean closed, @Nullable String dye) {
+        this(mainHand, null, 0, pottery, contents, closed, dye);
     }
 
-    public PotteryScreen(BlockPos pos, int slot, Pottery pottery, VesselContents contents, boolean closed) {
-        this(false, pos, slot, pottery, contents, closed);
+    public PotteryScreen(BlockPos pos, int slot, Pottery pottery, VesselContents contents, boolean closed, @Nullable String dye) {
+        this(false, pos, slot, pottery, contents, closed, dye);
     }
 
     private PotteryScreen(
-            boolean mainHand, @Nullable BlockPos placed, int slot, Pottery pottery, VesselContents contents, boolean closed
+            boolean mainHand, @Nullable BlockPos placed, int slot, Pottery pottery, VesselContents contents, boolean closed, @Nullable String dye
     ) {
         //? if >=26.1 {
         super(Minecraft.getInstance(), Minecraft.getInstance().font, Component.literal("Pottery"));
@@ -59,6 +60,7 @@ public final class PotteryScreen extends Screen {
         this.slot = slot;
         this.pottery = pottery;
         this.contents = contents;
+        this.dye = dye;
         this.closed = closed;
     }
 
@@ -68,7 +70,8 @@ public final class PotteryScreen extends Screen {
                 hand == InteractionHand.MAIN_HAND,
                 PotteryItem.read(stack),
                 PotteryItem.contents(stack),
-                PotteryItem.lid(stack)
+                PotteryItem.lid(stack),
+                PotteryItem.dye(stack)
         ));
     }
 
@@ -83,7 +86,7 @@ public final class PotteryScreen extends Screen {
         if (pot == null) {
             return;
         }
-        show(new PotteryScreen(pos, slot, pot, pottery.contents(slot), pottery.lid(slot)));
+        show(new PotteryScreen(pos, slot, pot, pottery.contents(slot), pottery.lid(slot), pottery.dye(slot)));
     }
 
     private static void show(PotteryScreen screen) {
@@ -166,7 +169,7 @@ public final class PotteryScreen extends Screen {
     }
 
     private void drawContents(GuiGraphicsExtractor graphics) {
-        PotteryPreview.draw(graphics, this.pottery, this.closed, this.left + 8, this.top + 4, this.left + 112, this.top + 36);
+        PotteryPreview.draw(graphics, this.pottery, this.closed, this.dye, this.left + 8, this.top + 4, this.left + 112, this.top + 36);
         if (!this.pottery.classify().type().isVessel()) {
             return;
         }

@@ -5,6 +5,7 @@ import java.util.ArrayList;
 import java.util.List;
 import net.minecraft.client.renderer.blockentity.BlockEntityRenderer;
 import net.minecraft.client.renderer.texture.TextureAtlasSprite;
+import net.minecraft.resources.Identifier;
 //? if >=26.1
 import net.minecraft.client.renderer.blockentity.state.BlockEntityRenderState;
 import net.modcrafters.minecraft.primalpottery.block.PotteryBlockEntity;
@@ -36,6 +37,7 @@ public final class PotteryRenderer implements BlockEntityRenderer<PotteryBlockEn
         state.slots = blockEntity.slots();
         state.contents = blockEntity.contents();
         state.lids = blockEntity.lids();
+        state.dyes = blockEntity.dyes();
     }
 
     @Override
@@ -45,23 +47,20 @@ public final class PotteryRenderer implements BlockEntityRenderer<PotteryBlockEn
             net.minecraft.client.renderer.SubmitNodeCollector collector,
             net.minecraft.client.renderer.state.level.CameraRenderState camera
     ) {
-        Mesh mesh = clay(state.slots, state.lids);
         List<FluidDraw> draws = fluids(state.slots, state.contents);
         boolean solidFluid = has(draws, true);
         boolean translucent = has(draws, false);
-        if (mesh.quads().isEmpty() && !solidFluid && !translucent) {
+        if (!occupied(state.slots) && !solidFluid && !translucent) {
             return;
         }
         poseStack.pushPose();
         poseStack.scale(1 / 32.0F, 1 / 32.0F, 1 / 32.0F);
-        if (!mesh.quads().isEmpty() || solidFluid) {
+        if (occupied(state.slots) || solidFluid) {
             collector.submitCustomGeometry(
                     poseStack,
                     net.minecraft.client.renderer.rendertype.RenderTypes.entitySolid(Sprites.blocks()),
                     (pose, buffer) -> {
-                        if (!mesh.quads().isEmpty()) {
-                            Sprites.draw(mesh, buffer, pose, state.lightCoords);
-                        }
+                        drawClay(state.slots, state.lids, state.dyes, buffer, pose, state.lightCoords);
                         drawFluids(draws, buffer, pose, state.lightCoords, true);
                     }
             );
@@ -80,6 +79,7 @@ public final class PotteryRenderer implements BlockEntityRenderer<PotteryBlockEn
         public Pottery[] slots = new Pottery[PotteryBlockEntity.SLOTS];
         public VesselContents[] contents = new VesselContents[PotteryBlockEntity.SLOTS];
         public boolean[] lids = new boolean[PotteryBlockEntity.SLOTS];
+        public String[] dyes = new String[PotteryBlockEntity.SLOTS];
     }
     //?} else {
     /*@Override
@@ -91,20 +91,17 @@ public final class PotteryRenderer implements BlockEntityRenderer<PotteryBlockEn
             int light,
             int overlay
     ) {
-        Mesh mesh = clay(blockEntity.slots(), blockEntity.lids());
         List<FluidDraw> draws = fluids(blockEntity.slots(), blockEntity.contents());
         boolean solidFluid = has(draws, true);
         boolean translucent = has(draws, false);
-        if (mesh.quads().isEmpty() && !solidFluid && !translucent) {
+        if (!occupied(blockEntity.slots()) && !solidFluid && !translucent) {
             return;
         }
         poseStack.pushPose();
         poseStack.scale(1 / 32.0F, 1 / 32.0F, 1 / 32.0F);
-        if (!mesh.quads().isEmpty() || solidFluid) {
+        if (occupied(blockEntity.slots()) || solidFluid) {
             var buffer = buffers.getBuffer(net.minecraft.client.renderer.RenderType.entitySolid(Sprites.blocks()));
-            if (!mesh.quads().isEmpty()) {
-                Sprites.draw(mesh, buffer, poseStack.last(), light);
-            }
+            drawClay(blockEntity.slots(), blockEntity.lids(), blockEntity.dyes(), buffer, poseStack.last(), light);
             drawFluids(draws, buffer, poseStack.last(), light, true);
         }
         if (translucent) {
@@ -137,27 +134,48 @@ public final class PotteryRenderer implements BlockEntityRenderer<PotteryBlockEn
     private record FluidDraw(Mesh mesh, TextureAtlasSprite sprite, int color, boolean solid) {
     }
 
-    private static Mesh clay(Pottery[] slots, boolean[] lids) {
-        Mesh mesh = new Mesh();
+    private static boolean occupied(Pottery[] slots) {
+        if (slots == null) {
+            return false;
+        }
+        for (Pottery pottery : slots) {
+            if (pottery != null) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private static void drawClay(
+            Pottery[] slots, boolean[] lids, String[] dyes, com.mojang.blaze3d.vertex.VertexConsumer buffer, PoseStack.Pose pose, int light
+    ) {
+        if (slots == null) {
+            return;
+        }
         for (int index = 0; index < slots.length; index++) {
             Pottery pottery = slots[index];
             if (pottery == null) {
                 continue;
             }
-            boolean closed = lids != null && index < lids.length && lids[index];
-            Mesh pot = new Mesh();
+            String dye = dyes != null && index < dyes.length ? dyes[index] : null;
+            Identifier texture = Sprites.clayTexture(dye);
+            int color = Sprites.dyeTint(dye);
             AABB box = PotteryBlockEntity.box(index);
             double x = box.getCenter().x * 32;
             double z = box.getCenter().z * 32;
-            pot.vessel(x, 0, z, pottery.discs(), Mesh.Texture.CLAY);
+            Mesh vessel = new Mesh();
+            vessel.vessel(x, 0, z, pottery.discs(), Mesh.Texture.CLAY);
+            vessel.fitSprite();
+            boolean closed = lids != null && index < lids.length && lids[index];
             Pottery.Cover cover = closed ? pottery.cover() : null;
+            Mesh lid = null;
             if (cover != null) {
-                pot.cover(x, 0, z, cover, Mesh.Texture.CLAY);
+                lid = new Mesh();
+                lid.cover(x, 0, z, cover, Mesh.Texture.CLAY);
+                lid.fitSprite();
             }
-            pot.fitSprite();
-            mesh.add(pot);
+            Sprites.draw(vessel, lid, buffer, pose, light, texture, color);
         }
-        return mesh;
     }
 
     private static List<FluidDraw> fluids(Pottery[] slots, VesselContents[] contents) {

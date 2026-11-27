@@ -1,5 +1,6 @@
 package net.modcrafters.minecraft.primalpottery.item;
 
+import java.util.Map;
 import java.util.function.Consumer;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.component.DataComponents;
@@ -41,8 +42,62 @@ import net.minecraft.world.item.component.TooltipDisplay;
 //import net.minecraft.world.InteractionResultHolder;
 
 public class PotteryItem extends BlockItem {
+    /** Brighter than the vanilla dye swatches, so a painted piece reads as that colour. */
+    private static final Map<String, Integer> DYE_COLORS = Map.ofEntries(
+            Map.entry("white", 0xFFFFFF),
+            Map.entry("orange", 0xFF5500),
+            Map.entry("magenta", 0xFF2BD6),
+            Map.entry("light_blue", 0x2ECFFF),
+            Map.entry("yellow", 0xFFEA00),
+            Map.entry("lime", 0x7DFF1A),
+            Map.entry("pink", 0xFF5C9D),
+            Map.entry("gray", 0x5A5A5A),
+            Map.entry("light_gray", 0xC6C6C6),
+            Map.entry("cyan", 0x00E5E5),
+            Map.entry("purple", 0xC43BFF),
+            Map.entry("blue", 0x2F4BFF),
+            Map.entry("brown", 0xC46A28),
+            Map.entry("green", 0x3DCC12),
+            Map.entry("red", 0xFF2A2A),
+            Map.entry("black", 0x1A1A1A)
+    );
+
     public PotteryItem(Properties properties) {
         super(ModBlocks.POTTERY, properties);
+    }
+
+    /** The paint colour, or null when the name is not one of the 16 dyes. */
+    public static @Nullable Integer dyeColor(@Nullable String dye) {
+        return dye == null ? null : DYE_COLORS.get(dye);
+    }
+
+    /** Points the inventory model at the tinted pottery shape. An unknown dye leaves the stack unchanged. */
+    public static void showColor(ItemStack stack, @Nullable String dye) {
+        Integer color = dyeColor(dye);
+        if (color == null) {
+            return;
+        }
+        //? if >=26.1 {
+        stack.set(DataComponents.CUSTOM_MODEL_DATA, new net.minecraft.world.item.component.CustomModelData(
+                java.util.List.of(), java.util.List.of(), java.util.List.of(), java.util.List.of(color)
+        ));
+        //?} else {
+        /*stack.set(DataComponents.CUSTOM_MODEL_DATA, new net.minecraft.world.item.component.CustomModelData(1));
+        *///?}
+    }
+
+    /** Undyed names stay unstyled. A known dye name uses the shared color map. */
+    public static Component dyedName(Component name, @Nullable String dye) {
+        Integer color = dyeColor(dye);
+        if (color == null) {
+            return name;
+        }
+        return name.copy().withStyle(style -> style.withColor(color));
+    }
+
+    @Override
+    public Component getName(ItemStack stack) {
+        return dyedName(super.getName(stack), dye(stack));
     }
 
     public static ItemStack stack(Pottery pottery) {
@@ -54,6 +109,10 @@ public class PotteryItem extends BlockItem {
     }
 
     public static ItemStack stack(Pottery pottery, VesselContents contents, boolean lid) {
+        return stack(pottery, contents, lid, null);
+    }
+
+    public static ItemStack stack(Pottery pottery, VesselContents contents, boolean lid, @Nullable String dye) {
         ItemStack stack = new ItemStack(ModItems.POTTERY);
         CompoundTag tag = new CompoundTag();
         tag.put("pottery", pottery.save());
@@ -61,8 +120,37 @@ public class PotteryItem extends BlockItem {
         if (lid) {
             tag.putBoolean("lid", true);
         }
+        if (dye != null && !dye.isEmpty()) {
+            tag.putString("dye", dye);
+        }
         stack.set(DataComponents.CUSTOM_DATA, CustomData.of(tag));
+        showColor(stack, dye);
         return stack;
+    }
+
+    public static @Nullable String dye(ItemStack stack) {
+        CompoundTag tag = customData(stack);
+        if (tag == null) {
+            return null;
+        }
+        String dye = Nbt.getString(tag, "dye");
+        return dye.isEmpty() ? null : dye;
+    }
+
+    /** Copies the pottery compound onto {@code into} when the stack has one. */
+    public static void copyPottery(ItemStack stack, CompoundTag into) {
+        CompoundTag data = customData(stack);
+        if (data == null) {
+            return;
+        }
+        CompoundTag pottery = Nbt.compound(data, "pottery");
+        if (!pottery.isEmpty()) {
+            into.put("pottery", pottery.copy());
+        }
+    }
+
+    public static @Nullable CompoundTag customData(ItemStack stack) {
+        return tag(stack);
     }
 
     public static boolean lid(ItemStack stack) {
@@ -224,6 +312,7 @@ public class PotteryItem extends BlockItem {
         Pottery shaped = read(stack);
         VesselContents contents = contents(stack);
         boolean closed = lid(stack);
+        String color = dye(stack);
         InteractionResult result = super.place(context);
         if (!result.consumesAction()) {
             return result;
@@ -231,7 +320,7 @@ public class PotteryItem extends BlockItem {
         Level level = context.getLevel();
         BlockEntity blockEntity = level.getBlockEntity(context.getClickedPos());
         if (blockEntity instanceof PotteryBlockEntity pottery) {
-            pottery.put(PartHits.quadrant(context.getClickedPos(), context.getClickLocation()), shaped, contents, closed);
+            pottery.put(PartHits.quadrant(context.getClickedPos(), context.getClickLocation()), shaped, contents, closed, color);
         }
         return result;
     }

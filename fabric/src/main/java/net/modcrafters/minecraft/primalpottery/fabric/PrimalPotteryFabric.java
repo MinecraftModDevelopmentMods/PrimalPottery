@@ -13,6 +13,7 @@ import net.modcrafters.minecraft.primalpottery.block.ModBlocks;
 import net.modcrafters.minecraft.primalpottery.block.PotteryBlock;
 import net.modcrafters.minecraft.primalpottery.item.ModItems;
 import net.modcrafters.minecraft.primalpottery.item.ModTab;
+import net.modcrafters.minecraft.primalpottery.recipe.ModRecipes;
 import net.modcrafters.minecraft.primalpottery.network.LidPayload;
 import net.modcrafters.minecraft.primalpottery.network.LidSync;
 import net.modcrafters.minecraft.primalpottery.network.PlacedLidPayload;
@@ -26,6 +27,7 @@ public class PrimalPotteryFabric implements ModInitializer {
         ModBlocks.register((id, block) -> Registry.register(BuiltInRegistries.BLOCK, id, block));
         ModBlockEntities.register((id, type) -> Registry.register(BuiltInRegistries.BLOCK_ENTITY_TYPE, id, type));
         ModItems.register((id, item) -> Registry.register(BuiltInRegistries.ITEM, id, item));
+        ModRecipes.register((id, serializer) -> Registry.register(BuiltInRegistries.RECIPE_SERIALIZER, id, serializer));
         Registry.register(
                 BuiltInRegistries.CREATIVE_MODE_TAB,
                 ModTab.ID,

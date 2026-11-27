@@ -8,11 +8,12 @@ import net.minecraft.network.protocol.game.ClientGamePacketListener;
 import net.minecraft.network.protocol.game.ClientboundBlockEntityDataPacket;
 import net.minecraft.world.entity.item.ItemEntity;
 import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.block.Block;
-import net.modcrafters.minecraft.primalpottery.item.PotteryItem;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.AABB;
+import net.modcrafters.minecraft.primalpottery.item.RawPotteryItem;
 import net.modcrafters.minecraft.primalpottery.pottery.Nbt;
 import net.modcrafters.minecraft.primalpottery.pottery.Pottery;
 import org.jspecify.annotations.Nullable;
@@ -34,6 +35,7 @@ public class PotteryWheelBlockEntity extends BlockEntity {
     private boolean hasClay;
     private float clayProgress;
     private Pottery template;
+    private Pottery start;
 
     public PotteryWheelBlockEntity(BlockPos pos, BlockState state) {
         super(ModBlockEntities.WHEEL, pos, state);
@@ -52,6 +54,9 @@ public class PotteryWheelBlockEntity extends BlockEntity {
 
     public void spin() {
         if (this.level != null && !this.level.isClientSide()) {
+            if (this.hasClay && this.clayProgress >= 1) {
+                return;
+            }
             this.spinTicks += 24;
             this.sync();
         }
@@ -67,23 +72,44 @@ public class PotteryWheelBlockEntity extends BlockEntity {
         this.sync();
     }
 
-    public void startClay() {
+    public void startClay(@Nullable Pottery start) {
         this.hasClay = true;
         this.clayProgress = 0;
+        this.start = start;
         this.sync();
     }
 
     public void takeClay(Player player) {
-        this.hasClay = false;
-        this.clayProgress = 0;
-        if (this.level != null && !this.level.isClientSide()) {
-            double x = player.getX();
-            double y = player.getY();
-            double z = player.getZ();
-            ItemEntity drop = new ItemEntity(this.level, x, y, z, PotteryItem.stack(this.formed()));
-            this.level.addFreshEntity(drop);
+        boolean present = this.hasClay;
+        ItemStack drop = present ? this.formingStack() : ItemStack.EMPTY;
+        this.clearForming();
+        if (present && this.level != null && !this.level.isClientSide()) {
+            this.level.addFreshEntity(new ItemEntity(this.level, player.getX(), player.getY(), player.getZ(), drop));
         }
         this.sync();
+    }
+
+    /** The raw stack {@link #takeClay} would drop, then clears the clay. Empty when the wheel is bare. */
+    public ItemStack removeForming() {
+        if (!this.hasClay) {
+            return ItemStack.EMPTY;
+        }
+        ItemStack drop = this.formingStack();
+        this.clearForming();
+        return drop;
+    }
+
+    private ItemStack formingStack() {
+        Pottery shape = this.clayProgress >= 1
+                ? this.formed()
+                : Pottery.shaped(this.start, this.formed(), this.clayProgress);
+        return RawPotteryItem.stack(shape);
+    }
+
+    private void clearForming() {
+        this.hasClay = false;
+        this.clayProgress = 0;
+        this.start = null;
     }
 
     public int spinTicks() {
@@ -102,6 +128,10 @@ public class PotteryWheelBlockEntity extends BlockEntity {
         return this.template;
     }
 
+    public @Nullable Pottery start() {
+        return this.start;
+    }
+
     public Pottery formed() {
         return Pottery.formed(this.template);
     }
@@ -112,6 +142,13 @@ public class PotteryWheelBlockEntity extends BlockEntity {
 
     public void tick() {
         this.keepHead();
+        if (this.hasClay && this.clayProgress >= 1 && this.spinTicks > 0) {
+            this.spinTicks = 0;
+            if (this.level != null && !this.level.isClientSide()) {
+                this.sync();
+            }
+            return;
+        }
         if (this.spinTicks <= 0) {
             this.spinTicks = 0;
             return;
@@ -121,12 +158,18 @@ public class PotteryWheelBlockEntity extends BlockEntity {
         while (this.angle > Math.PI * 2) {
             this.angle -= Math.PI * 2;
         }
+        boolean finished = false;
         if (this.hasClay && this.clayProgress < 1) {
             this.clayProgress = Math.min(1, this.clayProgress + 0.01F);
+            if (this.clayProgress >= 1) {
+                this.clayProgress = 1;
+                this.spinTicks = 0;
+                finished = true;
+            }
         }
         // Clients animate between server snapshots. Persist the authoritative tick and settle all clients at rest.
         if (this.level != null && !this.level.isClientSide()) {
-            if (this.spinTicks == 0) {
+            if (finished || this.spinTicks == 0) {
                 this.sync();
             } else {
                 this.setChanged();
@@ -169,6 +212,9 @@ public class PotteryWheelBlockEntity extends BlockEntity {
         if (this.template != null) {
             tag.put("template", this.template.save());
         }
+        if (this.start != null) {
+            tag.put("start", this.start.save());
+        }
         return tag;
     }
 
@@ -180,6 +226,8 @@ public class PotteryWheelBlockEntity extends BlockEntity {
         this.clayProgress = Nbt.getFloat(tag, "progress");
         CompoundTag template = Nbt.compound(tag, "template");
         this.template = template.isEmpty() ? null : Pottery.load(template);
+        CompoundTag start = Nbt.compound(tag, "start");
+        this.start = start.isEmpty() ? null : Pottery.load(start);
     }
 
     private void keepHead() {

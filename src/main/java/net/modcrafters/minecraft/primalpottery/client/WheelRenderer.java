@@ -2,14 +2,11 @@ package net.modcrafters.minecraft.primalpottery.client;
 
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.math.Axis;
-import java.util.ArrayList;
-import java.util.List;
 import net.minecraft.client.renderer.blockentity.BlockEntityRenderer;
 //? if >=26.1
 import net.minecraft.client.renderer.blockentity.state.BlockEntityRenderState;
 import net.modcrafters.minecraft.primalpottery.block.PotteryWheelBlockEntity;
 import net.modcrafters.minecraft.primalpottery.pottery.Pottery;
-import net.modcrafters.minecraft.primalpottery.pottery.PotteryDisc;
 
 //? if >=26.1 {
 public final class WheelRenderer implements BlockEntityRenderer<PotteryWheelBlockEntity, WheelRenderer.State> {
@@ -38,6 +35,7 @@ public final class WheelRenderer implements BlockEntityRenderer<PotteryWheelBloc
         state.hasClay = blockEntity.hasClay();
         state.progress = blockEntity.clayProgress();
         state.template = blockEntity.template();
+        state.start = blockEntity.start();
     }
 
     @Override
@@ -60,11 +58,11 @@ public final class WheelRenderer implements BlockEntityRenderer<PotteryWheelBloc
         poseStack.translate(16, 0, 16);
         poseStack.rotate(Axis.YP, -state.angle);
         poseStack.translate(-16, 0, -16);
-        Mesh clay = state.hasClay ? clay(Pottery.formed(state.template), state.progress) : null;
+        Mesh clay = state.hasClay ? clay(Pottery.shaped(state.start, Pottery.formed(state.template), state.progress)) : null;
         collector.submitCustomGeometry(poseStack, renderType, (pose, buffer) -> {
             Sprites.draw(SPINNING, buffer, pose, state.lightCoords);
             if (clay != null) {
-                Sprites.draw(clay, buffer, pose, state.lightCoords);
+                Sprites.draw(clay, buffer, pose, state.lightCoords, Sprites.rawTexture());
             }
         });
         poseStack.popPose();
@@ -80,6 +78,7 @@ public final class WheelRenderer implements BlockEntityRenderer<PotteryWheelBloc
         public boolean hasClay;
         public float progress;
         public Pottery template;
+        public Pottery start;
     }
     //?} else {
     /*@Override
@@ -106,7 +105,8 @@ public final class WheelRenderer implements BlockEntityRenderer<PotteryWheelBloc
         pose = poseStack.last();
         Sprites.draw(SPINNING, buffer, pose, light);
         if (blockEntity.hasClay()) {
-            Sprites.draw(clay(blockEntity.formed(), blockEntity.clayProgress()), buffer, pose, light);
+            Pottery shaped = Pottery.shaped(blockEntity.start(), blockEntity.formed(), blockEntity.clayProgress());
+            Sprites.draw(clay(shaped), buffer, pose, light, Sprites.rawTexture());
         }
         poseStack.popPose();
         poseStack.popPose();
@@ -149,15 +149,9 @@ public final class WheelRenderer implements BlockEntityRenderer<PotteryWheelBloc
         return mesh;
     }
 
-    private static Mesh clay(Pottery pottery, float progress) {
-        List<PotteryDisc> formed = new ArrayList<>();
-        for (PotteryDisc disc : pottery.discs()) {
-            double radius = disc.radius() + (4.0 - disc.radius()) * (1.0 - progress);
-            double inner = disc.innerRadius() * progress;
-            formed.add(new PotteryDisc(disc.height(), radius, inner));
-        }
+    private static Mesh clay(Pottery pottery) {
         Mesh mesh = new Mesh();
-        mesh.vessel(16, 28, 16, formed, Mesh.Texture.CLAY);
+        mesh.vessel(16, 28, 16, pottery.discs(), Mesh.Texture.CLAY);
         mesh.fitSprite();
         return mesh;
     }

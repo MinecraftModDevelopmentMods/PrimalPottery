@@ -8,6 +8,12 @@ After publishing, the action commits the next development version and changelog 
 
 ## Unreleased
 
+- A raw or fired piece in your hand or inventory has the shape that was thrown. Raw clay looks like clay, painted clay and fired pottery use a bright dye, and a closed pot keeps its lid.
+- Raw pottery's tooltip says it needs firing. Undyed clay also says it can be dyed, and a vessel says how many millilitres it will hold once it is fired.
+- A clay ball on the wheel is used up. The wheel stops when the shape is finished. Take the piece off then and you get raw pottery of that shape. Take it off earlier and you get the shape it had reached.
+- Undyed raw pottery can go back on the wheel and be reshaped toward another blueprint.
+- Craft raw pottery with a dye to paint it. Smelt raw pottery, painted or plain, and it fires into a usable vessel with the same shape and colour.
+
 ## 0.0.1
 
 - Picking up clay unlocks recipes for the pottery wheel and raw template. Mining either half of the wheel returns the wheel in Survival.

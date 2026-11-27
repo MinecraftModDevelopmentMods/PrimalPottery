@@ -24,11 +24,41 @@ public final class Sprites {
             case LOG -> "block/oak_log";
             case CLAY -> "block/red_terracotta";
         };
-        Identifier id = Ids.of("minecraft", path);
+        return sprite(Ids.of("minecraft", path));
+    }
+
+    /** White concrete for a known dye, so a vertex tint stays bright. Fired clay with no dye stays red terracotta. */
+    public static Identifier clayTexture(@Nullable String dye) {
+        if (dye != null && vanillaDye(dye)) {
+            return Ids.of("minecraft", "block/white_concrete");
+        }
+        return Ids.of("minecraft", "block/red_terracotta");
+    }
+
+    /** Unfired clay. The pottery shape uses this instead of terracotta. */
+    public static Identifier rawTexture() {
+        return Ids.of("minecraft", "block/clay");
+    }
+
+    /** White when the dye is absent or unknown, so an undyed surface keeps its texture. */
+    public static int dyeTint(@Nullable String dye) {
+        Integer color = net.modcrafters.minecraft.primalpottery.item.PotteryItem.dyeColor(dye);
+        return color == null ? 0xFFFFFF : color;
+    }
+
+    public static TextureAtlasSprite sprite(Identifier id) {
         //? if >=26.1 {
         return Minecraft.getInstance().getAtlasManager().getAtlasOrThrow(net.minecraft.data.AtlasIds.BLOCKS).getSprite(id);
         //?} else
         //return Minecraft.getInstance().getTextureAtlas(TextureAtlas.LOCATION_BLOCKS).apply(id);
+    }
+
+    private static boolean vanillaDye(String dye) {
+        return switch (dye) {
+            case "white", "orange", "magenta", "light_blue", "yellow", "lime", "pink", "gray", "light_gray", "cyan",
+                    "purple", "blue", "brown", "green", "red", "black" -> true;
+            default -> false;
+        };
     }
 
     public static Identifier blocks() {
@@ -94,12 +124,73 @@ public final class Sprites {
     }
 
     public static void draw(Mesh mesh, VertexConsumer buffer, PoseStack.Pose pose, int light, int alpha) {
+        write(mesh, null, buffer, pose, light, alpha);
+    }
+
+    public static void draw(Mesh mesh, VertexConsumer buffer, PoseStack.Pose pose, int light, Identifier texture) {
+        draw(mesh, null, buffer, pose, light, texture, 0xFFFFFF);
+    }
+
+    public static void draw(Mesh mesh, VertexConsumer buffer, PoseStack.Pose pose, int light, Identifier texture, int color) {
+        draw(mesh, null, buffer, pose, light, texture, color);
+    }
+
+    /** Draws each mesh with one sprite. The meshes are not merged. */
+    public static void draw(@Nullable Mesh first, @Nullable Mesh second, VertexConsumer buffer, PoseStack.Pose pose, int light, Identifier texture) {
+        draw(first, second, buffer, pose, light, texture, 0xFFFFFF);
+    }
+
+    /** Draws each mesh with one sprite, multiplied by {@code color}. The meshes are not merged. */
+    public static void draw(@Nullable Mesh first, @Nullable Mesh second, VertexConsumer buffer, PoseStack.Pose pose, int light, Identifier texture, int color) {
+        draw(first, second, buffer, pose, light, texture, color, false);
+    }
+
+    /**
+     * Same as {@link #draw(Mesh, Mesh, VertexConsumer, PoseStack.Pose, int, Identifier, int)}.
+     * When {@code shade} is set, each face is darkened the way a block item is, so a flat-lit icon still reads as a solid.
+     */
+    public static void draw(@Nullable Mesh first, @Nullable Mesh second, VertexConsumer buffer, PoseStack.Pose pose, int light, Identifier texture, int color, boolean shade) {
+        TextureAtlasSprite sprite = sprite(texture);
+        int red = (color >> 16) & 255;
+        int green = (color >> 8) & 255;
+        int blue = color & 255;
+        if (first != null) {
+            write(first, sprite, buffer, pose, light, red, green, blue, 255, shade);
+        }
+        if (second != null) {
+            write(second, sprite, buffer, pose, light, red, green, blue, 255, shade);
+        }
+    }
+
+    private static void write(Mesh mesh, @Nullable TextureAtlasSprite forced, VertexConsumer buffer, PoseStack.Pose pose, int light, int alpha) {
+        write(mesh, forced, buffer, pose, light, 255, 255, 255, alpha, false);
+    }
+
+    private static void write(Mesh mesh, @Nullable TextureAtlasSprite forced, VertexConsumer buffer, PoseStack.Pose pose, int light, int red, int green, int blue, int alpha, boolean shade) {
         for (Mesh.Quad quad : mesh.quads()) {
-            TextureAtlasSprite sprite = get(quad.texture);
+            TextureAtlasSprite sprite = forced == null ? get(quad.texture) : forced;
+            float face = shade ? faceShade(quad.nx, quad.ny, quad.nz) : 1.0F;
+            int shadedRed = (int) (red * face);
+            int shadedGreen = (int) (green * face);
+            int shadedBlue = (int) (blue * face);
             for (int vertex = 0; vertex < 4; vertex++) {
-                put(buffer, pose, quad.x[vertex], quad.y[vertex], quad.z[vertex], sampleU(sprite, quad.u[vertex]), sampleV(sprite, quad.v[vertex]), light, 255, 255, 255, alpha, quad.nx, quad.ny, quad.nz);
+                put(buffer, pose, quad.x[vertex], quad.y[vertex], quad.z[vertex], sampleU(sprite, quad.u[vertex]), sampleV(sprite, quad.v[vertex]), light, shadedRed, shadedGreen, shadedBlue, alpha, quad.nx, quad.ny, quad.nz);
             }
         }
+    }
+
+    /** Block-item brightness for the nearest axis. Up is full, down is half, north and south are 0.8, east and west are 0.6. */
+    private static float faceShade(float nx, float ny, float nz) {
+        float ax = Math.abs(nx);
+        float ay = Math.abs(ny);
+        float az = Math.abs(nz);
+        if (ay >= ax && ay >= az) {
+            return ny > 0 ? 1.0F : 0.5F;
+        }
+        if (az >= ax) {
+            return 0.8F;
+        }
+        return 0.6F;
     }
 
     public static void drawFluid(Mesh mesh, VertexConsumer buffer, PoseStack.Pose pose, int light, TextureAtlasSprite sprite, int color) {
