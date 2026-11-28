@@ -8,6 +8,8 @@ After publishing, the action commits the next development version and changelog 
 
 ## Unreleased
 
+## 0.0.2
+
 - The pottery wheel fills the block it stands on and the lower half of the block above. The outline is that whole shape, so nothing else can be placed there. Breaking either part drops one wheel, and a wheel from an older world grows the upper half when the space above it is empty.
 - Right-click the table with a blueprint to set it on the wheel. That uses one blueprint, even in Creative. Right-click the table with an empty hand to take it back. Setting another blueprint returns the one that was there. Breaking the wheel in Survival drops the blueprint along with any clay still on it.
 - The blueprint's shape stands on all four edges of the table.
