@@ -97,7 +97,7 @@ public class PotteryItem extends BlockItem {
 
     @Override
     public Component getName(ItemStack stack) {
-        return dyedName(super.getName(stack), dye(stack));
+        return dyedName(read(stack).classify().type().shapeName(), dye(stack));
     }
 
     public static ItemStack stack(Pottery pottery) {

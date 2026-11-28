@@ -23,6 +23,7 @@ import net.minecraft.world.level.block.state.StateDefinition;
 import net.minecraft.world.level.block.state.properties.BlockStateProperties;
 import net.minecraft.world.level.block.state.properties.DoubleBlockHalf;
 import net.minecraft.world.level.storage.loot.LootParams;
+import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.Vec3;
 import net.minecraft.world.phys.shapes.CollisionContext;
@@ -30,7 +31,6 @@ import net.minecraft.world.phys.shapes.Shapes;
 import net.minecraft.world.phys.shapes.VoxelShape;
 import net.modcrafters.minecraft.primalpottery.item.ModItems;
 import net.modcrafters.minecraft.primalpottery.item.RawPotteryItem;
-import net.modcrafters.minecraft.primalpottery.item.TemplateItem;
 import net.modcrafters.minecraft.primalpottery.pottery.Pottery;
 import net.modcrafters.minecraft.primalpottery.pottery.PartHits;
 import net.modcrafters.minecraft.primalpottery.pottery.Placement;
@@ -40,7 +40,8 @@ public class PotteryWheelBlock extends Block implements EntityBlock {
     public static final DoubleBlockHalf LOWER = DoubleBlockHalf.LOWER;
     public static final DoubleBlockHalf UPPER = DoubleBlockHalf.UPPER;
     public static final net.minecraft.world.level.block.state.properties.EnumProperty<DoubleBlockHalf> HALF = BlockStateProperties.DOUBLE_BLOCK_HALF;
-    private static final VoxelShape UPPER_SHAPE = Shapes.box(0, 0, 0, 1, PotteryWheelBlockEntity.BLOCK_HEIGHT - 1, 1);
+    private static final AABB BOUNDS = new AABB(0, 0, 0, 1, 1.5, 1);
+    private static final VoxelShape UPPER_SHAPE = Shapes.box(0, 0, 0, 1, BOUNDS.maxY - 1, 1);
     private static boolean removingPartner;
 
     public PotteryWheelBlock(Properties properties) {
@@ -103,10 +104,11 @@ public class PotteryWheelBlock extends Block implements EntityBlock {
         return state.getValue(HALF) == UPPER ? UPPER_SHAPE : Shapes.block();
     }
 
-    static void removePartner(Level level, BlockPos pos, BlockState state, boolean drop) {
+    private static void removePartner(Level level, BlockPos pos, BlockState state, boolean drop) {
         if (removingPartner) {
             return;
         }
+        releaseContents(level, origin(state, pos), drop);
         BlockPos other = state.getValue(HALF) == LOWER ? pos.above() : pos.below();
         BlockState otherState = level.getBlockState(other);
         if (!otherState.is(state.getBlock()) || otherState.getValue(HALF) == state.getValue(HALF)) {
@@ -114,15 +116,6 @@ public class PotteryWheelBlock extends Block implements EntityBlock {
         }
         removingPartner = true;
         try {
-            if (drop && !level.isClientSide()) {
-                BlockPos lower = state.getValue(HALF) == LOWER ? pos : other;
-                if (level.getBlockEntity(lower) instanceof PotteryWheelBlockEntity wheel) {
-                    ItemStack forming = wheel.removeForming();
-                    if (!forming.isEmpty()) {
-                        popResource(level, lower, forming);
-                    }
-                }
-            }
             if (drop && !level.isClientSide() && state.getValue(HALF) == UPPER) {
                 popResource(level, other, new ItemStack(ModItems.WHEEL));
             }
@@ -142,7 +135,7 @@ public class PotteryWheelBlock extends Block implements EntityBlock {
 
     @Override
     public @Nullable <T extends BlockEntity> BlockEntityTicker<T> getTicker(Level level, BlockState state, BlockEntityType<T> type) {
-        if (type != ModBlockEntities.WHEEL) {
+        if (state.getValue(HALF) == UPPER || type != ModBlockEntities.WHEEL) {
             return null;
         }
         return (level1, pos, state1, blockEntity) -> ((PotteryWheelBlockEntity) blockEntity).tick();
@@ -153,19 +146,44 @@ public class PotteryWheelBlock extends Block implements EntityBlock {
         return RenderShape.INVISIBLE;
     }
 
+    private static void releaseContents(Level level, BlockPos pos, boolean drop) {
+        if (level.isClientSide() || !(level.getBlockEntity(pos) instanceof PotteryWheelBlockEntity wheel)) {
+            return;
+        }
+        ItemStack forming = wheel.removeForming();
+        ItemStack template = wheel.removeTemplate();
+        if (!drop) {
+            return;
+        }
+        if (!forming.isEmpty()) {
+            popResource(level, pos, forming);
+        }
+        if (!template.isEmpty()) {
+            popResource(level, pos, template);
+        }
+    }
+
+    private static BlockPos origin(BlockState state, BlockPos pos) {
+        return state.getValue(HALF) == UPPER ? pos.below() : pos;
+    }
+
+    public static AABB outline(BlockState state, BlockPos pos) {
+        return BOUNDS.move(origin(state, pos));
+    }
+
     //? if >=1.21.2 {
     @Override
     public InteractionResult useItemOn(
             ItemStack stack, BlockState state, Level level, BlockPos pos, Player player, InteractionHand hand, BlockHitResult hit
     ) {
-        return interact(level, origin(state, pos), player, stack);
+        return interact(level, origin(state, pos), player, hand, stack);
     }
     //?} else {
     /*@Override
     public net.minecraft.world.ItemInteractionResult useItemOn(
             ItemStack stack, BlockState state, Level level, BlockPos pos, Player player, InteractionHand hand, BlockHitResult hit
     ) {
-        InteractionResult result = interact(level, origin(state, pos), player, stack);
+        InteractionResult result = interact(level, origin(state, pos), player, hand, stack);
         if (result.consumesAction()) {
             return net.minecraft.world.ItemInteractionResult.SUCCESS;
         }
@@ -175,18 +193,13 @@ public class PotteryWheelBlock extends Block implements EntityBlock {
 
     @Override
     public InteractionResult useWithoutItem(BlockState state, Level level, BlockPos pos, Player player, BlockHitResult hit) {
-        ItemStack stack = player.getMainHandItem();
-        if (stack.isEmpty()) {
-            stack = player.getOffhandItem();
-        }
-        return interact(level, origin(state, pos), player, stack);
+        InteractionHand hand = player.getMainHandItem().isEmpty() && !player.getOffhandItem().isEmpty()
+                ? InteractionHand.OFF_HAND
+                : InteractionHand.MAIN_HAND;
+        return interact(level, origin(state, pos), player, hand, player.getItemInHand(hand));
     }
 
-    private static BlockPos origin(BlockState state, BlockPos pos) {
-        return state.getValue(HALF) == UPPER ? pos.below() : pos;
-    }
-
-    private static InteractionResult interact(Level level, BlockPos pos, Player player, ItemStack stack) {
+    private static InteractionResult interact(Level level, BlockPos pos, Player player, InteractionHand hand, ItemStack stack) {
         if (!(level.getBlockEntity(pos) instanceof PotteryWheelBlockEntity wheel)) {
             return InteractionResult.PASS;
         }
@@ -198,12 +211,10 @@ public class PotteryWheelBlock extends Block implements EntityBlock {
         }
         if (part == PotteryWheelBlockEntity.TABLE) {
             if (stack.is(ModItems.BLUEPRINT)) {
-                wheel.install(TemplateItem.profile(stack));
-                return InteractionResult.SUCCESS;
+                return installTemplate(level, player, hand, stack, wheel);
             }
-            if (player.isShiftKeyDown() && stack.isEmpty() && !wheel.hasClay() && wheel.template() != null) {
-                wheel.clearTemplate();
-                return InteractionResult.SUCCESS;
+            if (stack.isEmpty()) {
+                return takeTemplate(level, player, hand, wheel);
             }
             return InteractionResult.PASS;
         }
@@ -223,6 +234,42 @@ public class PotteryWheelBlock extends Block implements EntityBlock {
             if (player != null && !player.hasInfiniteMaterials()) {
                 stack.shrink(1);
             }
+        }
+        return InteractionResult.SUCCESS;
+    }
+
+    /** One blueprint moves into the wheel. A blueprint already there comes back to the hand. */
+    private static InteractionResult installTemplate(
+            Level level, Player player, InteractionHand hand, ItemStack stack, PotteryWheelBlockEntity wheel
+    ) {
+        if (level.isClientSide()) {
+            return InteractionResult.SUCCESS;
+        }
+        ItemStack stored = stack.split(1);
+        ItemStack previous = wheel.replaceTemplate(stored);
+        if (previous.isEmpty()) {
+            if (player.getItemInHand(hand).isEmpty()) {
+                player.setItemInHand(hand, ItemStack.EMPTY);
+            }
+            return InteractionResult.SUCCESS;
+        }
+        if (player.getItemInHand(hand).isEmpty()) {
+            player.setItemInHand(hand, previous);
+        } else if (!player.getInventory().add(previous)) {
+            //? if >=26.1 {
+            player.drop(previous, false, net.minecraft.util.Prediction.SERVER_ONLY);
+            //?} else
+            //player.drop(previous, false);
+        }
+        return InteractionResult.SUCCESS;
+    }
+
+    private static InteractionResult takeTemplate(Level level, Player player, InteractionHand hand, PotteryWheelBlockEntity wheel) {
+        if (wheel.templateItem().isEmpty()) {
+            return InteractionResult.PASS;
+        }
+        if (!level.isClientSide()) {
+            player.setItemInHand(hand, wheel.removeTemplate());
         }
         return InteractionResult.SUCCESS;
     }

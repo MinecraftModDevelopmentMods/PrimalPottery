@@ -8,6 +8,16 @@ After publishing, the action commits the next development version and changelog 
 
 ## Unreleased
 
+- The pottery wheel fills the block it stands on and the lower half of the block above. The outline is that whole shape, so nothing else can be placed there. Breaking either part drops one wheel, and a wheel from an older world grows the upper half when the space above it is empty.
+- Right-click the table with a blueprint to set it on the wheel. That uses one blueprint, even in Creative. Right-click the table with an empty hand to take it back. Setting another blueprint returns the one that was there. Breaking the wheel in Survival drops the blueprint along with any clay still on it.
+- The blueprint's shape stands on all four edges of the table.
+- Editing a stack of raw templates saves the shape onto one blueprint and leaves the rest of the stack raw.
+- The template editor says left-click shapes the outside and right-click creates the inside.
+- Pottery on a shelf sits on the plank, a little larger than before, and shows the liquid inside.
+- Placed pottery keeps an even shade from one layer of the shape to the next.
+- A wide mouth is a Bowl, a narrow mouth is a Jug, and any other shape is Pottery. A raw piece is named Raw Bowl, Raw Jug, or Raw Pottery.
+- The creative tab contains the pottery wheel and the raw pottery template.
+- On NeoForge 1.20.6, pottery items render in the inventory.
 - A raw or fired piece in your hand or inventory has the shape that was thrown. Raw clay looks like clay, painted clay and fired pottery use a bright dye, and a closed pot keeps its lid.
 - Raw pottery's tooltip says it needs firing. Undyed clay also says it can be dyed, and a vessel says how many millilitres it will hold once it is fired.
 - A clay ball on the wheel is used up. The wheel stops when the shape is finished. Take the piece off then and you get raw pottery of that shape. Take it off earlier and you get the shape it had reached.

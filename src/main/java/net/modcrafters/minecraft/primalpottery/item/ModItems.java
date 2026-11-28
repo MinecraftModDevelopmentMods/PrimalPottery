@@ -36,7 +36,7 @@ public final class ModItems {
     }
 
     public static List<ItemStack> tabContents() {
-        return List.of(new ItemStack(WHEEL), new ItemStack(POTTERY), new ItemStack(RAW_TEMPLATE), new ItemStack(BLUEPRINT));
+        return List.of(new ItemStack(WHEEL), new ItemStack(RAW_TEMPLATE));
     }
 
     public static ItemStack tabIcon() {

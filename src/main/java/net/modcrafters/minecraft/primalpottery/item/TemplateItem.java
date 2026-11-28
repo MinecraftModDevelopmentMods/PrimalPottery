@@ -24,7 +24,7 @@ import net.minecraft.world.item.component.TooltipDisplay;
 //? if <26.1
 //import net.minecraft.world.InteractionResultHolder;
 
-/** A reusable profile. Using it sculpts; the table keeps that profile. */
+/** A reusable profile. Using it sculpts. The wheel holds one finished blueprint. */
 public final class TemplateItem extends Item {
     public TemplateItem(Properties properties) {
         super(properties);

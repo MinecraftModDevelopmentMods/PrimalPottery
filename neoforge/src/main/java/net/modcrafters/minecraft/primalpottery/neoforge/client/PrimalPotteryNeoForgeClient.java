@@ -79,7 +79,7 @@ public final class PrimalPotteryNeoForgeClient {
         /*modBus.addListener(PrimalPotteryNeoForgeClient::items);
         *///?}
         //? if <1.21 {
-        /*bindItems();
+        /*modBus.addListener(PrimalPotteryNeoForgeClient::bindItems);
         *///?}
     }
 
@@ -130,7 +130,7 @@ public final class PrimalPotteryNeoForgeClient {
     *///?}
 
     //? if <1.21 {
-    /*private static void bindItems() {
+    /*private static void bindItems(net.neoforged.fml.event.lifecycle.FMLClientSetupEvent event) {
         var extensions = extensions();
         net.modcrafters.minecraft.primalpottery.item.ModItems.POTTERY.renderProperties = extensions;
         net.modcrafters.minecraft.primalpottery.item.ModItems.RAW_POTTERY.renderProperties = extensions;

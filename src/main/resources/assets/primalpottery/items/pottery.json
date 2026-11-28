@@ -1,9 +1,26 @@
 {
   "model": {
-    "type": "minecraft:special",
-    "base": "primalpottery:block/pottery",
-    "model": {
-      "type": "primalpottery:pottery"
+    "type": "minecraft:select",
+    "property": "minecraft:display_context",
+    "cases": [
+      {
+        "when": "on_shelf",
+        "model": {
+          "type": "minecraft:special",
+          "base": "primalpottery:block/pottery",
+          "model": {
+            "type": "primalpottery:pottery",
+            "on_shelf": true
+          }
+        }
+      }
+    ],
+    "fallback": {
+      "type": "minecraft:special",
+      "base": "primalpottery:block/pottery",
+      "model": {
+        "type": "primalpottery:pottery"
+      }
     }
   }
 }

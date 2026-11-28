@@ -79,7 +79,10 @@ public class RawPotteryItem extends Item {
 
     @Override
     public Component getName(ItemStack stack) {
-        return PotteryItem.dyedName(super.getName(stack), PotteryItem.dye(stack));
+        return PotteryItem.dyedName(
+                Component.translatable("item.primalpottery.raw_shape", PotteryItem.read(stack).classify().type().shapeName()),
+                PotteryItem.dye(stack)
+        );
     }
 
     //? if >=26.1 {

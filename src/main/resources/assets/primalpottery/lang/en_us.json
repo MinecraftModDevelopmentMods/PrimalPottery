@@ -5,6 +5,7 @@
   "item.primalpottery.pottery_wheel": "Pottery Wheel",
   "item.primalpottery.pottery": "Pottery",
   "item.primalpottery.raw_pottery": "Raw Pottery",
+  "item.primalpottery.raw_shape": "Raw %s",
   "item.primalpottery.pottery_template": "Pottery Blueprint",
   "item.primalpottery.raw_pottery_template": "Raw Pottery Template",
   "tooltip.primalpottery.type": "Type: %s",
@@ -12,9 +13,14 @@
   "tooltip.primalpottery.can_be_dyed": "Can be dyed",
   "tooltip.primalpottery.will_contain": "Will contain %s mL",
   "tooltip.primalpottery.capacity": "Capacity: %s mL",
+  "gui.primalpottery.template.left": "left-click to shape the outside",
+  "gui.primalpottery.template.right": "right-click to create the inside",
   "tooltip.primalpottery.contents": "%s: %s mL",
   "pottery.primalpottery.type.lump": "Lump",
-  "pottery.primalpottery.type.pot": "Pot",
-  "pottery.primalpottery.type.jar": "Jar",
-  "pottery.primalpottery.type.jug": "Jug"
+  "pottery.primalpottery.type.pot": "Bowl",
+  "pottery.primalpottery.type.jar": "Pottery",
+  "pottery.primalpottery.type.jug": "Jug",
+  "pottery.primalpottery.shape.jug": "Jug",
+  "pottery.primalpottery.shape.bowl": "Bowl",
+  "pottery.primalpottery.shape.pottery": "Pottery"
 }

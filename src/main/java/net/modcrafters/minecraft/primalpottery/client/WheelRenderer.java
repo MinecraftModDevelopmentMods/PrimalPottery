@@ -144,8 +144,7 @@ public final class WheelRenderer implements BlockEntityRenderer<PotteryWheelBloc
 
     private static Mesh pattern(Pottery pottery) {
         Mesh mesh = new Mesh();
-        mesh.board(30, 24, 2, 2, pottery.discs(), Mesh.Texture.PLANKS);
-        mesh.fitSprite();
+        mesh.edgeBoards(30, 24, 2, pottery.discs(), Mesh.Texture.PLANKS);
         return mesh;
     }
 

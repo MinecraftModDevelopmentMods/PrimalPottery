@@ -221,6 +221,21 @@ class PotteryTest {
     }
 
     @Test
+    void itemNameUsesJugBowlOrPottery() {
+        assertEquals(Component.translatable("pottery.primalpottery.shape.bowl"), vessel(5).classify().type().shapeName());
+        assertEquals(Component.translatable("pottery.primalpottery.shape.pottery"), vessel(4).classify().type().shapeName());
+        assertEquals(Component.translatable("pottery.primalpottery.shape.jug"), vessel(2.7).classify().type().shapeName());
+        assertEquals(
+                Component.translatable("item.primalpottery.raw_shape", Component.translatable("pottery.primalpottery.shape.jug")),
+                RawPotteryItem.stack(vessel(2.7)).getHoverName()
+        );
+        assertEquals(
+                Component.translatable("pottery.primalpottery.shape.bowl"),
+                PotteryItem.stack(vessel(5)).getHoverName()
+        );
+    }
+
+    @Test
     void rawTooltipSaysItNeedsFiringAndHowMuchItWillHold() {
         Pottery jar = new Pottery(List.of(
                 new PotteryDisc(1, 4, 3),

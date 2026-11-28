@@ -52,6 +52,7 @@ import net.modcrafters.minecraft.primalpottery.Ids;
 import net.modcrafters.minecraft.primalpottery.block.ModBlocks;
 import net.modcrafters.minecraft.primalpottery.block.PotteryBlock;
 import net.modcrafters.minecraft.primalpottery.block.PotteryBlockEntity;
+import net.modcrafters.minecraft.primalpottery.block.PotteryWheelBlock;
 import net.modcrafters.minecraft.primalpottery.block.PotteryWheelBlockEntity;
 import net.modcrafters.minecraft.primalpottery.item.ModItems;
 import net.modcrafters.minecraft.primalpottery.item.PotteryItem;
@@ -63,6 +64,7 @@ import net.modcrafters.minecraft.primalpottery.network.LidSync;
 import net.modcrafters.minecraft.primalpottery.network.PlacedLidSync;
 import net.modcrafters.minecraft.primalpottery.network.TemplateSync;
 import net.modcrafters.minecraft.primalpottery.pottery.Nbt;
+import net.modcrafters.minecraft.primalpottery.pottery.Placement;
 import net.modcrafters.minecraft.primalpottery.pottery.Pottery;
 import net.modcrafters.minecraft.primalpottery.pottery.PotteryDisc;
 import net.modcrafters.minecraft.primalpottery.pottery.VesselContents;
@@ -94,15 +96,16 @@ public final class PotteryGameTests {
 
     private static void wheel(GameTestHelper helper) {
         BlockPos wheelPos = new BlockPos(1, 2, 1);
-        helper.setBlock(wheelPos, ModBlocks.WHEEL);
         Player player = mockPlayer(helper);
+        wheelPlacement(helper, player, wheelPos);
         PotteryWheelBlockEntity wheel = helper.getBlockEntity(wheelPos, PotteryWheelBlockEntity.class);
 
         checkTemplateCycle(helper, player);
+        installedTemplate(helper, player, wheelPos);
 
         aim(player, partCenter(helper, wheelPos, PotteryWheelBlockEntity.BIG_WHEEL));
         player.setItemInHand(InteractionHand.MAIN_HAND, ItemStack.EMPTY);
-        helper.useBlock(wheelPos, player);
+        helper.useBlock(wheelPos.above(), player);
         helper.assertValueEqual(wheel.spinTicks(), 24, "spin ticks");
 
         ItemStack clay = new ItemStack(Items.CLAY_BALL);
@@ -173,18 +176,68 @@ public final class PotteryGameTests {
         ((ServerPlayer) player).setGameMode(GameType.SURVIVAL);
         helper.assertFalse(player.preventsBlockDrops(), "survival wheel drops disabled");
         BlockPos absoluteWheel = helper.absolutePos(wheelPos);
+        Pottery kept = new Pottery(List.of(new PotteryDisc(1, 4, 2)));
         for (BlockPos broken : List.of(absoluteWheel, absoluteWheel.above())) {
             helper.setBlock(wheelPos, ModBlocks.WHEEL);
-            helper.getBlockEntity(wheelPos, PotteryWheelBlockEntity.class).tick();
+            PotteryWheelBlockEntity placed = helper.getBlockEntity(wheelPos, PotteryWheelBlockEntity.class);
+            placed.tick();
+            placed.install(kept);
+            helper.assertBlockPresent(ModBlocks.WHEEL, wheelPos.above());
             ((ServerPlayer) player).gameMode.destroyBlock(broken);
             helper.assertBlockNotPresent(ModBlocks.WHEEL, wheelPos);
             helper.assertBlockNotPresent(ModBlocks.WHEEL, wheelPos.above());
             var drops = helper.getLevel().getEntitiesOfClass(ItemEntity.class, new AABB(absoluteWheel).inflate(2),
                     item -> item.getItem().is(ModItems.WHEEL));
-            helper.assertValueEqual(drops.stream().mapToInt(item -> item.getItem().getCount()).sum(), 1, "wheel drops from " + broken);
+            helper.assertValueEqual(drops.stream().mapToInt(item -> item.getItem().getCount()).sum(), 1, "wheel drops");
+            var templates = helper.getLevel().getEntitiesOfClass(ItemEntity.class, new AABB(absoluteWheel).inflate(2),
+                    item -> item.getItem().is(ModItems.BLUEPRINT));
+            helper.assertValueEqual(templates.stream().mapToInt(item -> item.getItem().getCount()).sum(), 1, "template drops");
+            helper.assertValueEqual(TemplateItem.read(templates.get(0).getItem()).discs(), kept.discs(), "dropped template");
             drops.forEach(ItemEntity::discard);
+            templates.forEach(ItemEntity::discard);
         }
         helper.succeed();
+    }
+
+    private static void wheelPlacement(GameTestHelper helper, Player player, BlockPos base) {
+        ((ServerPlayer) player).setGameMode(GameType.SURVIVAL);
+        BlockPos floor = base.below();
+        BlockPos upper = base.above();
+        helper.setBlock(floor, Blocks.STONE);
+        helper.setBlock(upper, Blocks.STONE);
+        holdStack(player, new ItemStack(ModItems.WHEEL));
+        useItemOn(helper, player, floor, topPoint(floor, 0), Direction.UP);
+        helper.assertBlockNotPresent(ModBlocks.WHEEL, base);
+        helper.assertBlockPresent(Blocks.STONE, upper);
+        helper.assertValueEqual(player.getMainHandItem().getCount(), 1, "wheel consumed under a low ceiling");
+
+        helper.setBlock(upper, Blocks.AIR);
+        useItemOn(helper, player, floor, topPoint(floor, 0), Direction.UP);
+        helper.assertBlockProperty(base, PotteryWheelBlock.HALF, PotteryWheelBlock.LOWER);
+        helper.assertBlockProperty(upper, PotteryWheelBlock.HALF, PotteryWheelBlock.UPPER);
+        helper.assertTrue(player.getMainHandItem().isEmpty(), "wheel placement did not consume the item");
+
+        AABB bounds = new AABB(0, 0, 0, 1, 1.5, 1).move(helper.absolutePos(base));
+        for (BlockPos part : List.of(base, upper)) {
+            BlockPos absolute = helper.absolutePos(part);
+            BlockHitResult hit = new BlockHitResult(Vec3.atCenterOf(absolute), Direction.NORTH, absolute, false);
+            helper.assertValueEqual(Placement.outline(helper.getLevel(), player, hit), bounds, "whole wheel outline from " + part);
+            AABB collision = helper.getBlockState(part).getCollisionShape(helper.getLevel(), absolute).bounds();
+            helper.assertValueEqual(collision, new AABB(0, 0, 0, 1, part.equals(base) ? 1 : 0.5, 1), "collision at " + part);
+        }
+
+        BlockPos neighbor = upper.west();
+        helper.setBlock(neighbor, Blocks.STONE);
+        Vec3 side = Vec3.atCenterOf(neighbor).add(0.5, 0, 0);
+        player.setShiftKeyDown(true);
+        for (Item item : List.of(Items.STONE, Items.OAK_SLAB)) {
+            player.setItemInHand(InteractionHand.MAIN_HAND, new ItemStack(item));
+            useItemOn(helper, player, neighbor, side, Direction.EAST);
+            helper.assertBlockProperty(upper, PotteryWheelBlock.HALF, PotteryWheelBlock.UPPER);
+            helper.assertValueEqual(player.getMainHandItem().getCount(), 1, "side placement consumed " + item);
+        }
+        helper.setBlock(neighbor, Blocks.AIR);
+        holdStack(player, ItemStack.EMPTY);
     }
 
     private static void checkTemplateCycle(GameTestHelper helper, Player player) {
@@ -223,6 +276,87 @@ public final class PotteryGameTests {
         CraftingInput blankInput = CraftingInput.of(1, 1, List.of(reset));
         helper.assertTrue(recipes.getRecipeFor(RecipeType.CRAFTING, blankInput, helper.getLevel()).isEmpty(),
                 "raw templates should not match the reset recipe");
+
+        ItemStack stacked = new ItemStack(ModItems.RAW_TEMPLATE, 4);
+        player.setItemInHand(InteractionHand.MAIN_HAND, stacked);
+        TemplateSync.apply(player, true, profile);
+        helper.assertTrue(stacked.is(ModItems.RAW_TEMPLATE), "raw stack was replaced");
+        helper.assertValueEqual(stacked.getCount(), 3, "raw stack count");
+        helper.assertTrue(TemplateItem.read(stacked) == null, "raw stack gained a profile");
+        int savedSlot = -1;
+        ItemStack saved = ItemStack.EMPTY;
+        for (int slot = 0; slot < player.getInventory().getContainerSize(); slot++) {
+            ItemStack item = player.getInventory().getItem(slot);
+            if (item.is(ModItems.BLUEPRINT)) {
+                savedSlot = slot;
+                saved = item;
+                break;
+            }
+        }
+        helper.assertTrue(savedSlot >= 0, "edited template was not split out");
+        helper.assertValueEqual(saved.getCount(), 1, "edited count");
+        helper.assertValueEqual(TemplateItem.profile(saved).discs(), profile, "edited profile");
+        player.getInventory().setItem(savedSlot, ItemStack.EMPTY);
+        player.setItemInHand(InteractionHand.MAIN_HAND, ItemStack.EMPTY);
+    }
+
+    private static void installedTemplate(GameTestHelper helper, Player player, BlockPos wheelPos) {
+        PotteryWheelBlockEntity wheel = helper.getBlockEntity(wheelPos, PotteryWheelBlockEntity.class);
+        ((ServerPlayer) player).setGameMode(GameType.CREATIVE);
+        Pottery first = new Pottery(List.of(new PotteryDisc(1, 4, 2)));
+        Pottery second = new Pottery(List.of(new PotteryDisc(1, 3, 1)));
+
+        ItemStack held = blueprint(first);
+        player.setItemInHand(InteractionHand.MAIN_HAND, held);
+        aim(player, partCenter(helper, wheelPos, PotteryWheelBlockEntity.TABLE));
+        helper.useBlock(wheelPos, player);
+        helper.assertTrue(held.isEmpty(), "creative template was not consumed");
+        helper.assertValueEqual(wheel.template().discs(), first.discs(), "installed profile");
+
+        var saved = wheel.getUpdateTag(helper.getLevel().registryAccess());
+        var loaded = new PotteryWheelBlockEntity(helper.absolutePos(wheelPos), wheel.getBlockState());
+        loaded.loadCustomOnly(TagValueInput.create(ProblemReporter.DISCARDING, helper.getLevel().registryAccess(), saved));
+        helper.assertValueEqual(loaded.template().discs(), first.discs(), "saved template");
+
+        player.setItemInHand(InteractionHand.MAIN_HAND, ItemStack.EMPTY);
+        helper.useBlock(wheelPos, player);
+        helper.assertTrue(wheel.templateItem().isEmpty(), "template stayed in the wheel");
+        helper.assertTrue(player.getMainHandItem().is(ModItems.BLUEPRINT), "empty hand did not take the template");
+        helper.assertValueEqual(TemplateItem.read(player.getMainHandItem()).discs(), first.discs(), "taken profile");
+
+        player.setItemInHand(InteractionHand.MAIN_HAND, blueprint(second));
+        helper.useBlock(wheelPos, player);
+        helper.assertTrue(player.getMainHandItem().isEmpty(), "second template was not consumed");
+        player.setItemInHand(InteractionHand.MAIN_HAND, blueprint(first));
+        helper.useBlock(wheelPos, player);
+        helper.assertValueEqual(wheel.template().discs(), first.discs(), "swapped profile");
+        helper.assertValueEqual(TemplateItem.read(player.getMainHandItem()).discs(), second.discs(), "returned template");
+
+        ItemStack stack = blueprint(second);
+        stack.setCount(2);
+        player.setItemInHand(InteractionHand.MAIN_HAND, stack);
+        helper.useBlock(wheelPos, player);
+        helper.assertValueEqual(stack.getCount(), 1, "template stack");
+        helper.assertValueEqual(wheel.template().discs(), second.discs(), "stack installed");
+        helper.assertValueEqual(TemplateItem.read(stack).discs(), second.discs(), "remaining template");
+        ItemStack returned = ItemStack.EMPTY;
+        for (int slot = 0; slot < player.getInventory().getContainerSize(); slot++) {
+            ItemStack item = player.getInventory().getItem(slot);
+            if (item != stack && item.is(ModItems.BLUEPRINT) && first.discs().equals(TemplateItem.read(item).discs())) {
+                returned = item;
+                player.getInventory().setItem(slot, ItemStack.EMPTY);
+                break;
+            }
+        }
+        helper.assertValueEqual(returned.getCount(), 1, "old template from a stack");
+        wheel.clearTemplate();
+        player.setItemInHand(InteractionHand.MAIN_HAND, ItemStack.EMPTY);
+    }
+
+    private static ItemStack blueprint(Pottery pottery) {
+        ItemStack stack = new ItemStack(ModItems.BLUEPRINT);
+        TemplateItem.write(stack, pottery);
+        return stack;
     }
 
     private static void forming(GameTestHelper helper, Player player, BlockPos wheelPos) {
