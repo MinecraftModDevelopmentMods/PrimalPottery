@@ -86,11 +86,12 @@ public class PotteryBlock extends Block implements EntityBlock {
         Pottery taken = pottery.get(part);
         VesselContents contents = pottery.contents(part);
         boolean lid = pottery.lid(part);
+        String dye = pottery.dye(part);
         BlockState state = level.getBlockState(pos);
         pottery.take(part);
         if (!level.isClientSide()) {
             if (!player.hasInfiniteMaterials()) {
-                popResource(level, pos, PotteryItem.stack(taken, contents, lid));
+                popResource(level, pos, PotteryItem.stack(taken, contents, lid, dye));
             }
             level.levelEvent(2001, pos, Block.getId(state));
         }
@@ -149,7 +150,7 @@ public class PotteryBlock extends Block implements EntityBlock {
             return InteractionResult.FAIL;
         }
         if (!level.isClientSide()) {
-            if (!pottery.put(target, PotteryItem.read(stack), PotteryItem.contents(stack), PotteryItem.lid(stack))) {
+            if (!pottery.put(target, PotteryItem.read(stack), PotteryItem.contents(stack), PotteryItem.lid(stack), PotteryItem.dye(stack))) {
                 return InteractionResult.FAIL;
             }
             level.playSound(null, pos, SoundType.DECORATED_POT.getPlaceSound(), SoundSource.BLOCKS, 1, 0.8F);
@@ -174,9 +175,10 @@ public class PotteryBlock extends Block implements EntityBlock {
                     Pottery taken = pottery.get(part);
                     VesselContents contents = pottery.contents(part);
                     boolean lid = pottery.lid(part);
+                    String dye = pottery.dye(part);
                     pottery.take(part);
                     level.addFreshEntity(new ItemEntity(
-                            level, pos.getX() + 0.5, pos.getY() + 1, pos.getZ() + 0.5, PotteryItem.stack(taken, contents, lid)
+                            level, pos.getX() + 0.5, pos.getY() + 1, pos.getZ() + 0.5, PotteryItem.stack(taken, contents, lid, dye)
                     ));
                 }
                 return InteractionResult.SUCCESS;

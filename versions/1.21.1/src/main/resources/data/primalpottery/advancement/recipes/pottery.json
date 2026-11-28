@@ -15,7 +15,9 @@
   "rewards": {
     "recipes": [
       "primalpottery:pottery_wheel",
-      "primalpottery:raw_pottery_template"
+      "primalpottery:raw_pottery_template",
+      "primalpottery:paint_pottery",
+      "primalpottery:fire_pottery"
     ]
   }
 }

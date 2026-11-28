@@ -5,10 +5,10 @@
     "clay": "minecraft:block/red_terracotta"
   },
   "elements": [
-    { "from": [6, 0, 6], "to": [10, 1, 10], "faces": { "down": { "texture": "#clay" }, "up": { "texture": "#clay" }, "north": { "texture": "#clay" }, "south": { "texture": "#clay" }, "west": { "texture": "#clay" }, "east": { "texture": "#clay" } } },
-    { "from": [4.5, 1, 4.5], "to": [11.5, 7, 11.5], "faces": { "down": { "texture": "#clay" }, "up": { "texture": "#clay" }, "north": { "texture": "#clay" }, "south": { "texture": "#clay" }, "west": { "texture": "#clay" }, "east": { "texture": "#clay" } } },
-    { "from": [5.5, 7, 5.5], "to": [10.5, 9, 10.5], "faces": { "down": { "texture": "#clay" }, "up": { "texture": "#clay" }, "north": { "texture": "#clay" }, "south": { "texture": "#clay" }, "west": { "texture": "#clay" }, "east": { "texture": "#clay" } } },
-    { "from": [6.5, 9, 6.5], "to": [9.5, 11, 9.5], "faces": { "down": { "texture": "#clay" }, "up": { "texture": "#clay" }, "north": { "texture": "#clay" }, "south": { "texture": "#clay" }, "west": { "texture": "#clay" }, "east": { "texture": "#clay" } } },
-    { "from": [5.5, 11, 5.5], "to": [10.5, 12.5, 10.5], "faces": { "down": { "texture": "#clay" }, "up": { "texture": "#clay" }, "north": { "texture": "#clay" }, "south": { "texture": "#clay" }, "west": { "texture": "#clay" }, "east": { "texture": "#clay" } } }
+    { "from": [6, 0, 6], "to": [10, 1, 10], "faces": { "down": { "texture": "#clay", "tintindex": 0 }, "up": { "texture": "#clay", "tintindex": 0 }, "north": { "texture": "#clay", "tintindex": 0 }, "south": { "texture": "#clay", "tintindex": 0 }, "west": { "texture": "#clay", "tintindex": 0 }, "east": { "texture": "#clay", "tintindex": 0 } } },
+    { "from": [4.5, 1, 4.5], "to": [11.5, 7, 11.5], "faces": { "down": { "texture": "#clay", "tintindex": 0 }, "up": { "texture": "#clay", "tintindex": 0 }, "north": { "texture": "#clay", "tintindex": 0 }, "south": { "texture": "#clay", "tintindex": 0 }, "west": { "texture": "#clay", "tintindex": 0 }, "east": { "texture": "#clay", "tintindex": 0 } } },
+    { "from": [5.5, 7, 5.5], "to": [10.5, 9, 10.5], "faces": { "down": { "texture": "#clay", "tintindex": 0 }, "up": { "texture": "#clay", "tintindex": 0 }, "north": { "texture": "#clay", "tintindex": 0 }, "south": { "texture": "#clay", "tintindex": 0 }, "west": { "texture": "#clay", "tintindex": 0 }, "east": { "texture": "#clay", "tintindex": 0 } } },
+    { "from": [6.5, 9, 6.5], "to": [9.5, 11, 9.5], "faces": { "down": { "texture": "#clay", "tintindex": 0 }, "up": { "texture": "#clay", "tintindex": 0 }, "north": { "texture": "#clay", "tintindex": 0 }, "south": { "texture": "#clay", "tintindex": 0 }, "west": { "texture": "#clay", "tintindex": 0 }, "east": { "texture": "#clay", "tintindex": 0 } } },
+    { "from": [5.5, 11, 5.5], "to": [10.5, 12.5, 10.5], "faces": { "down": { "texture": "#clay", "tintindex": 0 }, "up": { "texture": "#clay", "tintindex": 0 }, "north": { "texture": "#clay", "tintindex": 0 }, "south": { "texture": "#clay", "tintindex": 0 }, "west": { "texture": "#clay", "tintindex": 0 }, "east": { "texture": "#clay", "tintindex": 0 } } }
   ]
 }

@@ -30,22 +30,22 @@ public final class PotteryPreview {
     }
 
     static void draw(GuiGraphicsExtractor graphics, List<PotteryDisc> discs, int x0, int y0, int x1, int y1) {
-        draw(graphics, discs, null, x0, y0, x1, y1);
+        draw(graphics, discs, null, null, x0, y0, x1, y1);
     }
 
-    static void draw(GuiGraphicsExtractor graphics, Pottery pottery, boolean closed, int x0, int y0, int x1, int y1) {
+    static void draw(GuiGraphicsExtractor graphics, Pottery pottery, boolean closed, String dye, int x0, int y0, int x1, int y1) {
         Pottery.Cover cover = closed ? pottery.cover() : null;
-        draw(graphics, pottery.discs(), cover, x0, y0, x1, y1);
+        draw(graphics, pottery.discs(), cover, dye, x0, y0, x1, y1);
     }
 
-    private static void draw(GuiGraphicsExtractor graphics, List<PotteryDisc> discs, Pottery.Cover cover, int x0, int y0, int x1, int y1) {
+    private static void draw(GuiGraphicsExtractor graphics, List<PotteryDisc> discs, Pottery.Cover cover, String dye, int x0, int y0, int x1, int y1) {
         Model model = model(discs, x1 - x0, y1 - y0, cover);
         if (model.mesh().quads().isEmpty()) {
             return;
         }
         float spin = (System.currentTimeMillis() / 20) % 360;
         //? if >=26.1 {
-        SINK.submit(graphics, new State(model, spin, x0, y0, x1, y1));
+        SINK.submit(graphics, new State(model, dye, spin, x0, y0, x1, y1));
         //?} else {
         /*PoseStack pose = graphics.pose();
         pose.pushPose();
@@ -54,7 +54,7 @@ public final class PotteryPreview {
         orient(pose, model, spin);
         MultiBufferSource.BufferSource buffers = graphics.bufferSource();
         RenderType type = RenderType.entitySolid(Sprites.blocks());
-        Sprites.draw(model.mesh(), buffers.getBuffer(type), pose.last(), 0xF000F0);
+        Sprites.draw(model.mesh(), buffers.getBuffer(type), pose.last(), 0xF000F0, Sprites.clayTexture(dye), Sprites.dyeTint(dye));
         buffers.endBatch(type);
         pose.popPose();
         *///?}
@@ -112,6 +112,7 @@ public final class PotteryPreview {
 
     public record State(
             Model model,
+            @Nullable String dye,
             float spin,
             int x0,
             int y0,
@@ -121,9 +122,10 @@ public final class PotteryPreview {
             @Nullable ScreenRectangle scissorArea,
             @Nullable ScreenRectangle bounds
     ) implements PictureInPictureRenderState {
-        private State(Model model, float spin, int x0, int y0, int x1, int y1) {
+        private State(Model model, @Nullable String dye, float spin, int x0, int y0, int x1, int y1) {
             this(
                     model,
+                    dye,
                     spin,
                     x0,
                     y0,
@@ -149,7 +151,7 @@ public final class PotteryPreview {
             collector.submitCustomGeometry(
                     pose,
                     RenderTypes.entitySolid(Sprites.blocks()),
-                    (entry, buffer) -> Sprites.draw(state.model().mesh(), buffer, entry, 0xF000F0)
+                    (entry, buffer) -> Sprites.draw(state.model().mesh(), buffer, entry, 0xF000F0, Sprites.clayTexture(state.dye()), Sprites.dyeTint(state.dye()))
             );
         }
 

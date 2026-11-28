@@ -8,8 +8,8 @@ public enum PotteryType {
     LUMP("Just a lump of clay", ChatFormatting.DARK_RED),
     LUMP_NO_BOTTOM("A pipe?", ChatFormatting.DARK_RED),
     LUMP_THIN("Too thin!", ChatFormatting.DARK_RED),
-    POT("A pot!", ChatFormatting.DARK_AQUA),
-    JAR("A jar!", ChatFormatting.DARK_AQUA),
+    POT("A bowl!", ChatFormatting.DARK_AQUA),
+    JAR("Pottery", ChatFormatting.DARK_AQUA),
     JUG("A jug!", ChatFormatting.DARK_AQUA);
 
     private final String label;
@@ -35,5 +35,15 @@ public enum PotteryType {
     public Component tooltipName() {
         PotteryType type = this.isVessel() ? this : LUMP;
         return Component.translatable("pottery.primalpottery.type." + type.name().toLowerCase(Locale.ROOT));
+    }
+
+    /** Wide mouth is a bowl, narrow mouth is a jug, and every other shape is pottery. */
+    public Component shapeName() {
+        String shape = switch (this) {
+            case JUG -> "jug";
+            case POT -> "bowl";
+            default -> "pottery";
+        };
+        return Component.translatable("pottery.primalpottery.shape." + shape);
     }
 }

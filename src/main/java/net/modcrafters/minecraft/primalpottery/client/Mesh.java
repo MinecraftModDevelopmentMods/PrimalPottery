@@ -83,6 +83,37 @@ public final class Mesh {
         this.quads.addAll(other.quads);
     }
 
+    /** Copies {@code source} spun around the wheel's centre by {@code radians}. */
+    public void addSpun(Mesh source, double radians) {
+        double cos = Math.cos(radians);
+        double sin = Math.sin(radians);
+        for (Quad quad : source.quads) {
+            double nx = quad.nx * cos - quad.nz * sin;
+            double nz = quad.nx * sin + quad.nz * cos;
+            Quad spun = new Quad((float) nx, quad.ny, (float) nz, quad.texture);
+            for (int vertex = 0; vertex < 4; vertex++) {
+                double dx = quad.x[vertex] - 16;
+                double dz = quad.z[vertex] - 16;
+                spun.x[vertex] = (float) (16 + dx * cos - dz * sin);
+                spun.y[vertex] = quad.y[vertex];
+                spun.z[vertex] = (float) (16 + dx * sin + dz * cos);
+                spun.u[vertex] = quad.u[vertex];
+                spun.v[vertex] = quad.v[vertex];
+            }
+            this.quads.add(spun);
+        }
+    }
+
+    /** One upright profile on the middle of each table edge, standing perpendicular to that edge. */
+    public void edgeBoards(double back, double base, double depth, List<PotteryDisc> discs, Texture texture) {
+        Mesh board = new Mesh();
+        board.board(back, base, 16 - depth / 2.0, depth, discs, texture);
+        board.fitSprite();
+        for (int edge = 0; edge < 4; edge++) {
+            this.addSpun(board, edge * Math.PI / 2.0);
+        }
+    }
+
     public void vessel(double centerX, double base, double centerZ, List<PotteryDisc> discs, Texture texture) {
         List<PotteryDisc> rising = fromTheBottom(discs);
         double y = base;
@@ -300,13 +331,16 @@ public final class Mesh {
         float spanY = span(minY, maxY);
         float spanZ = span(minZ, maxZ);
         for (Quad quad : this.quads) {
+            float ax = Math.abs(quad.nx);
+            float ay = Math.abs(quad.ny);
+            float az = Math.abs(quad.nz);
             for (int vertex = 0; vertex < 4; vertex++) {
-                if (quad.nx != 0) {
-                    quad.u[vertex] = unit(quad.z[vertex], minZ, spanZ);
-                    quad.v[vertex] = unit(quad.y[vertex], minY, spanY);
-                } else if (quad.ny != 0) {
+                if (ay >= ax && ay >= az) {
                     quad.u[vertex] = unit(quad.x[vertex], minX, spanX);
                     quad.v[vertex] = unit(quad.z[vertex], minZ, spanZ);
+                } else if (ax >= az) {
+                    quad.u[vertex] = unit(quad.z[vertex], minZ, spanZ);
+                    quad.v[vertex] = unit(quad.y[vertex], minY, spanY);
                 } else {
                     quad.u[vertex] = unit(quad.x[vertex], minX, spanX);
                     quad.v[vertex] = unit(quad.y[vertex], minY, spanY);
@@ -345,7 +379,9 @@ public final class Mesh {
         if (inner <= 0) {
             this.cap(centerX, centerZ, y, outer, texture, up);
         } else {
-            this.ring(centerX, centerZ, y, outer, inner, texture, up);
+            // A pure up or down normal is fully lit or fully shadowed, so a radius step
+            // painted a band that did not match the layer beside it. Share the wall's shade.
+            this.ring(centerX, centerZ, y, outer, inner, texture, up, true, !hole);
         }
     }
 
@@ -378,10 +414,24 @@ public final class Mesh {
         double z1 = centerZ + radius * Math.sin(a1);
         double top = bottom + height;
         Direction facing = facing(x0, z0, x1, z1, centerX, centerZ, outward);
+        double nx = Math.cos(a0) + Math.cos(a1);
+        double nz = Math.sin(a0) + Math.sin(a1);
+        double len = Math.hypot(nx, nz);
+        if (len < 1.0e-8) {
+            nx = 1;
+            nz = 0;
+            len = 1;
+        }
+        if (!outward) {
+            nx = -nx;
+            nz = -nz;
+        }
+        nx /= len;
+        nz /= len;
         if (outward) {
-            this.face(x1, bottom, z1, x0, bottom, z0, x0, top, z0, x1, top, z1, facing, texture);
+            this.face(x1, bottom, z1, x0, bottom, z0, x0, top, z0, x1, top, z1, facing, nx, 0, nz, texture);
         } else {
-            this.face(x0, bottom, z0, x1, bottom, z1, x1, top, z1, x0, top, z0, facing, texture);
+            this.face(x0, bottom, z0, x1, bottom, z1, x1, top, z1, x0, top, z0, facing, nx, 0, nz, texture);
         }
     }
 
@@ -408,6 +458,12 @@ public final class Mesh {
     }
 
     private void ring(double centerX, double centerZ, double y, double outer, double inner, Texture texture, boolean up) {
+        this.ring(centerX, centerZ, y, outer, inner, texture, up, false, true);
+    }
+
+    private void ring(
+            double centerX, double centerZ, double y, double outer, double inner, Texture texture, boolean up, boolean matchWall, boolean outward
+    ) {
         double start = Math.PI / 8.0;
         double step = Math.PI / 4.0;
         Direction facing = up ? Direction.UP : Direction.DOWN;
@@ -422,10 +478,22 @@ public final class Mesh {
             double iz0 = centerZ + inner * Math.sin(a0);
             double ix1 = centerX + inner * Math.cos(a1);
             double iz1 = centerZ + inner * Math.sin(a1);
+            double nx = 0;
+            double ny = up ? 1 : -1;
+            double nz = 0;
+            if (matchWall) {
+                nx = Math.cos(a0) + Math.cos(a1);
+                nz = Math.sin(a0) + Math.sin(a1);
+                double len = Math.hypot(nx, nz);
+                double sign = outward ? 1.0 : -1.0;
+                nx = sign * nx / len;
+                ny = 0;
+                nz = sign * nz / len;
+            }
             if (up) {
-                this.face(ox0, y, oz0, ix0, y, iz0, ix1, y, iz1, ox1, y, oz1, facing, texture);
+                this.face(ox0, y, oz0, ix0, y, iz0, ix1, y, iz1, ox1, y, oz1, facing, nx, ny, nz, texture);
             } else {
-                this.face(ox0, y, oz0, ox1, y, oz1, ix1, y, iz1, ix0, y, iz0, facing, texture);
+                this.face(ox0, y, oz0, ox1, y, oz1, ix1, y, iz1, ix0, y, iz0, facing, nx, ny, nz, texture);
             }
         }
     }
@@ -451,7 +519,21 @@ public final class Mesh {
             Direction facing,
             Texture texture
     ) {
-        Quad quad = new Quad(facing.getStepX(), facing.getStepY(), facing.getStepZ(), texture);
+        this.face(x0, y0, z0, x1, y1, z1, x2, y2, z2, x3, y3, z3, facing, facing.getStepX(), facing.getStepY(), facing.getStepZ(), texture);
+    }
+
+    private void face(
+            double x0, double y0, double z0,
+            double x1, double y1, double z1,
+            double x2, double y2, double z2,
+            double x3, double y3, double z3,
+            Direction facing,
+            double nx,
+            double ny,
+            double nz,
+            Texture texture
+    ) {
+        Quad quad = new Quad((float) nx, (float) ny, (float) nz, texture);
         put(quad, 0, x0, y0, z0, facing);
         put(quad, 1, x1, y1, z1, facing);
         put(quad, 2, x2, y2, z2, facing);

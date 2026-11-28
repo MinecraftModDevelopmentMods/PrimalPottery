@@ -1,0 +1,7 @@
+{
+  "parent": "primalpottery:block/pottery",
+  "textures": {
+    "particle": "minecraft:block/clay",
+    "clay": "minecraft:block/clay"
+  }
+}

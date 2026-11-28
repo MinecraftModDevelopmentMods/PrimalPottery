@@ -8,6 +8,7 @@ import net.modcrafters.minecraft.primalpottery.block.ModBlockEntities;
 import net.modcrafters.minecraft.primalpottery.block.ModBlocks;
 import net.modcrafters.minecraft.primalpottery.item.ModItems;
 import net.modcrafters.minecraft.primalpottery.item.ModTab;
+import net.modcrafters.minecraft.primalpottery.recipe.ModRecipes;
 import net.modcrafters.minecraft.primalpottery.neoforge.client.PrimalPotteryNeoForgeClient;
 //? if >=26.1
 import net.modcrafters.minecraft.primalpottery.neoforge.PotteryGameTests;
@@ -68,6 +69,7 @@ public class PrimalPotteryNeoForge {
         event.register(Registries.BLOCK, helper -> ModBlocks.register(helper::register));
         event.register(Registries.BLOCK_ENTITY_TYPE, helper -> ModBlockEntities.register(helper::register));
         event.register(Registries.ITEM, helper -> ModItems.register(helper::register));
+        event.register(Registries.RECIPE_SERIALIZER, helper -> ModRecipes.register(helper::register));
         //? if >=26.1 {
         event.register(net.minecraft.core.registries.Registries.TEST_INSTANCE_TYPE, helper -> {
             helper.register(net.modcrafters.minecraft.primalpottery.Ids.of("wheel"), PotteryGameTests.codec());

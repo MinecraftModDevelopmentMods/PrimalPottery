@@ -32,9 +32,19 @@ public final class TemplateSync {
         InteractionHand hand = mainHand ? InteractionHand.MAIN_HAND : InteractionHand.OFF_HAND;
         ItemStack stack = player.getItemInHand(hand);
         if (stack.is(ModItems.RAW_TEMPLATE)) {
-            ItemStack blueprint = stack.transmuteCopy(ModItems.BLUEPRINT, stack.getCount());
+            ItemStack blueprint = new ItemStack(ModItems.BLUEPRINT);
             TemplateItem.write(blueprint, new Pottery(discs));
-            player.setItemInHand(hand, blueprint);
+            if (stack.getCount() == 1) {
+                player.setItemInHand(hand, blueprint);
+            } else {
+                stack.shrink(1);
+                if (!player.getInventory().add(blueprint)) {
+                    //? if >=26.1 {
+                    player.drop(blueprint, false, net.minecraft.util.Prediction.SERVER_ONLY);
+                    //?} else
+                    //player.drop(blueprint, false);
+                }
+            }
         } else if (stack.is(ModItems.BLUEPRINT)) {
             TemplateItem.write(stack, new Pottery(discs));
         }

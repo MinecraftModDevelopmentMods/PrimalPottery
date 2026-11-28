@@ -8,18 +8,19 @@ import net.minecraft.network.protocol.game.ClientGamePacketListener;
 import net.minecraft.network.protocol.game.ClientboundBlockEntityDataPacket;
 import net.minecraft.world.entity.item.ItemEntity;
 import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.block.Block;
-import net.modcrafters.minecraft.primalpottery.item.PotteryItem;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.AABB;
+import net.modcrafters.minecraft.primalpottery.item.ModItems;
+import net.modcrafters.minecraft.primalpottery.item.RawPotteryItem;
+import net.modcrafters.minecraft.primalpottery.item.TemplateItem;
 import net.modcrafters.minecraft.primalpottery.pottery.Nbt;
 import net.modcrafters.minecraft.primalpottery.pottery.Pottery;
 import org.jspecify.annotations.Nullable;
 
 public class PotteryWheelBlockEntity extends BlockEntity {
-    /** Collision height. The drawn wheel stays one block tall. */
-    public static final double BLOCK_HEIGHT = 1.5;
     public static final int TABLE = 0;
     public static final int BIG_WHEEL = 1;
     public static final int SMALL_WHEEL = 2;
@@ -29,11 +30,14 @@ public class PotteryWheelBlockEntity extends BlockEntity {
             box(9.5, 26, 9.5, 22.5, 28, 22.5)
     );
 
+    private boolean checkUpperHalf = true;
     private int spinTicks;
     private double angle;
     private boolean hasClay;
     private float clayProgress;
-    private Pottery template;
+    /** The one blueprint sitting in the wheel. Empty when none is installed. */
+    private ItemStack installed = ItemStack.EMPTY;
+    private Pottery start;
 
     public PotteryWheelBlockEntity(BlockPos pos, BlockState state) {
         super(ModBlockEntities.WHEEL, pos, state);
@@ -52,38 +56,82 @@ public class PotteryWheelBlockEntity extends BlockEntity {
 
     public void spin() {
         if (this.level != null && !this.level.isClientSide()) {
+            if (this.hasClay && this.clayProgress >= 1) {
+                return;
+            }
             this.spinTicks += 24;
             this.sync();
         }
     }
 
     public void install(Pottery pottery) {
-        this.template = pottery;
+        ItemStack stack = new ItemStack(ModItems.BLUEPRINT);
+        TemplateItem.write(stack, pottery);
+        this.installed = stack;
         this.sync();
+    }
+
+    /** Puts one blueprint in the slot and returns whatever was there. */
+    public ItemStack replaceTemplate(ItemStack stack) {
+        ItemStack previous = this.installed;
+        this.installed = stack;
+        this.sync();
+        return previous;
+    }
+
+    public ItemStack removeTemplate() {
+        ItemStack previous = this.installed;
+        this.installed = ItemStack.EMPTY;
+        this.sync();
+        return previous;
     }
 
     public void clearTemplate() {
-        this.template = null;
-        this.sync();
+        this.removeTemplate();
     }
 
-    public void startClay() {
+    public ItemStack templateItem() {
+        return this.installed;
+    }
+
+    public void startClay(@Nullable Pottery start) {
         this.hasClay = true;
         this.clayProgress = 0;
+        this.start = start;
         this.sync();
     }
 
     public void takeClay(Player player) {
-        this.hasClay = false;
-        this.clayProgress = 0;
-        if (this.level != null && !this.level.isClientSide()) {
-            double x = player.getX();
-            double y = player.getY();
-            double z = player.getZ();
-            ItemEntity drop = new ItemEntity(this.level, x, y, z, PotteryItem.stack(this.formed()));
-            this.level.addFreshEntity(drop);
+        boolean present = this.hasClay;
+        ItemStack drop = present ? this.formingStack() : ItemStack.EMPTY;
+        this.clearForming();
+        if (present && this.level != null && !this.level.isClientSide()) {
+            this.level.addFreshEntity(new ItemEntity(this.level, player.getX(), player.getY(), player.getZ(), drop));
         }
         this.sync();
+    }
+
+    /** The raw stack {@link #takeClay} would drop, then clears the clay. Empty when the wheel is bare. */
+    public ItemStack removeForming() {
+        if (!this.hasClay) {
+            return ItemStack.EMPTY;
+        }
+        ItemStack drop = this.formingStack();
+        this.clearForming();
+        return drop;
+    }
+
+    private ItemStack formingStack() {
+        Pottery shape = this.clayProgress >= 1
+                ? this.formed()
+                : Pottery.shaped(this.start, this.formed(), this.clayProgress);
+        return RawPotteryItem.stack(shape);
+    }
+
+    private void clearForming() {
+        this.hasClay = false;
+        this.clayProgress = 0;
+        this.start = null;
     }
 
     public int spinTicks() {
@@ -99,19 +147,48 @@ public class PotteryWheelBlockEntity extends BlockEntity {
     }
 
     public @Nullable Pottery template() {
-        return this.template;
+        return this.installed.isEmpty() ? null : TemplateItem.profile(this.installed);
+    }
+
+    public @Nullable Pottery start() {
+        return this.start;
     }
 
     public Pottery formed() {
-        return Pottery.formed(this.template);
+        return Pottery.formed(this.template());
     }
 
     public float angle() {
         return (float) this.angle;
     }
 
+    // Wheels saved by the single-block version may still need their upper half.
+    private void restoreUpperHalf() {
+        if (this.level == null || this.level.isClientSide()) {
+            this.checkUpperHalf = this.level == null;
+            return;
+        }
+        BlockPos above = this.worldPosition.above();
+        BlockState upper = this.getBlockState().setValue(PotteryWheelBlock.HALF, PotteryWheelBlock.UPPER);
+        BlockState existing = this.level.getBlockState(above);
+        if (existing == upper || this.level.isOutsideBuildHeight(above)) {
+            this.checkUpperHalf = false;
+        } else if (existing.isAir()) {
+            this.checkUpperHalf = !this.level.setBlock(above, upper, Block.UPDATE_ALL);
+        }
+    }
+
     public void tick() {
-        this.keepHead();
+        if (this.checkUpperHalf) {
+            this.restoreUpperHalf();
+        }
+        if (this.hasClay && this.clayProgress >= 1 && this.spinTicks > 0) {
+            this.spinTicks = 0;
+            if (this.level != null && !this.level.isClientSide()) {
+                this.sync();
+            }
+            return;
+        }
         if (this.spinTicks <= 0) {
             this.spinTicks = 0;
             return;
@@ -121,12 +198,18 @@ public class PotteryWheelBlockEntity extends BlockEntity {
         while (this.angle > Math.PI * 2) {
             this.angle -= Math.PI * 2;
         }
+        boolean finished = false;
         if (this.hasClay && this.clayProgress < 1) {
             this.clayProgress = Math.min(1, this.clayProgress + 0.01F);
+            if (this.clayProgress >= 1) {
+                this.clayProgress = 1;
+                this.spinTicks = 0;
+                finished = true;
+            }
         }
         // Clients animate between server snapshots. Persist the authoritative tick and settle all clients at rest.
         if (this.level != null && !this.level.isClientSide()) {
-            if (this.spinTicks == 0) {
+            if (finished || this.spinTicks == 0) {
                 this.sync();
             } else {
                 this.setChanged();
@@ -166,8 +249,9 @@ public class PotteryWheelBlockEntity extends BlockEntity {
         tag.putDouble("angle", this.angle);
         tag.putBoolean("clay", this.hasClay);
         tag.putFloat("progress", this.clayProgress);
-        if (this.template != null) {
-            tag.put("template", this.template.save());
+        this.saveTemplate(tag);
+        if (this.start != null) {
+            tag.put("start", this.start.save());
         }
         return tag;
     }
@@ -178,22 +262,33 @@ public class PotteryWheelBlockEntity extends BlockEntity {
         this.angle = Double.isFinite(savedAngle) ? savedAngle % (Math.PI * 2) : 0;
         this.hasClay = Nbt.getBoolean(tag, "clay");
         this.clayProgress = Nbt.getFloat(tag, "progress");
-        CompoundTag template = Nbt.compound(tag, "template");
-        this.template = template.isEmpty() ? null : Pottery.load(template);
+        this.loadTemplate(tag);
+        CompoundTag start = Nbt.compound(tag, "start");
+        this.start = start.isEmpty() ? null : Pottery.load(start);
     }
 
-    private void keepHead() {
-        if (this.level == null || this.level.isClientSide()) {
+    private void saveTemplate(CompoundTag tag) {
+        if (this.installed.isEmpty()) {
             return;
         }
-        BlockState state = this.getBlockState();
-        if (!state.is(ModBlocks.WHEEL) || state.getValue(PotteryWheelBlock.HALF) != net.minecraft.world.level.block.state.properties.DoubleBlockHalf.LOWER) {
+        tag.putBoolean("has_template", true);
+        Pottery saved = TemplateItem.read(this.installed);
+        if (saved != null) {
+            tag.put("template", saved.save());
+        }
+    }
+
+    private void loadTemplate(CompoundTag tag) {
+        CompoundTag saved = Nbt.compound(tag, "template");
+        if (saved.isEmpty() && !Nbt.getBoolean(tag, "has_template")) {
+            this.installed = ItemStack.EMPTY;
             return;
         }
-        BlockPos above = this.worldPosition.above();
-        if (this.level.getBlockState(above).isAir()) {
-            this.level.setBlock(above, state.setValue(PotteryWheelBlock.HALF, net.minecraft.world.level.block.state.properties.DoubleBlockHalf.UPPER), Block.UPDATE_ALL);
+        ItemStack stack = new ItemStack(ModItems.BLUEPRINT);
+        if (!saved.isEmpty()) {
+            TemplateItem.write(stack, Pottery.load(saved));
         }
+        this.installed = stack;
     }
 
     private void sync() {

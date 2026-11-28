@@ -7,12 +7,15 @@ import net.fabricmc.fabric.api.client.rendering.v1.PictureInPictureRendererRegis
 import net.fabricmc.fabric.api.client.rendering.v1.level.LevelRenderEvents;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.rendertype.RenderTypes;
+import net.minecraft.client.renderer.special.SpecialModelRenderers;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.HitResult;
 import net.minecraft.world.phys.shapes.Shapes;
+import net.modcrafters.minecraft.primalpottery.Ids;
 import net.modcrafters.minecraft.primalpottery.block.ModBlockEntities;
 import net.modcrafters.minecraft.primalpottery.client.PotteryPreview;
+import net.modcrafters.minecraft.primalpottery.client.PotterySpecialRenderer;
 import net.modcrafters.minecraft.primalpottery.network.LidPayload;
 import net.modcrafters.minecraft.primalpottery.network.LidSync;
 import net.modcrafters.minecraft.primalpottery.network.PlacedLidPayload;
@@ -31,6 +34,7 @@ public class PrimalPotteryFabricClient implements ClientModInitializer {
         PlacedLidSync.sender = (pos, slot, closed) -> ClientPlayNetworking.send(new PlacedLidPayload(pos, slot, closed));
         PictureInPictureRendererRegistry.register(context -> new PotteryPreview.Renderer());
         PotteryPreview.SINK = (graphics, state) -> graphics.guiRenderState.addPicturesInPictureState(state);
+        SpecialModelRenderers.ID_MAPPER.put(Ids.of("pottery"), PotterySpecialRenderer.Unbaked.MAP_CODEC);
         BlockEntityRendererRegistry.register(ModBlockEntities.WHEEL, context -> new WheelRenderer());
         BlockEntityRendererRegistry.register(ModBlockEntities.POTTERY, context -> new PotteryRenderer());
         LevelRenderEvents.BEFORE_BLOCK_OUTLINE.register((context, outline) -> {

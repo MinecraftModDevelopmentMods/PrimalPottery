@@ -70,7 +70,10 @@ tasks.named('compileJava', JavaCompile) {
 
 neoForge {
     version = neoforge_version
-    def at = rootProject.file('src/main/resources/META-INF/accesstransformer.cfg')
+    def at = file('src/main/resources/META-INF/accesstransformer.cfg')
+    if (!at.exists()) {
+        at = rootProject.file('src/main/resources/META-INF/accesstransformer.cfg')
+    }
     if (at.exists()) {
         accessTransformers.from(at.absolutePath)
     }

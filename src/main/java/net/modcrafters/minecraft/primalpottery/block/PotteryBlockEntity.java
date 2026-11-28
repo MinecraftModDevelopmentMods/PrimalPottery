@@ -28,6 +28,7 @@ public class PotteryBlockEntity extends BlockEntity {
     private final Pottery[] slots = new Pottery[SLOTS];
     private final VesselContents[] contents = blank();
     private final boolean[] lids = new boolean[SLOTS];
+    private final String[] dyes = new String[SLOTS];
 
     public PotteryBlockEntity(BlockPos pos, BlockState state) {
         super(ModBlockEntities.POTTERY, pos, state);
@@ -65,6 +66,14 @@ public class PotteryBlockEntity extends BlockEntity {
         return Arrays.copyOf(this.lids, this.lids.length);
     }
 
+    public @Nullable String dye(int index) {
+        return this.dyes[index];
+    }
+
+    public String[] dyes() {
+        return Arrays.copyOf(this.dyes, this.dyes.length);
+    }
+
     /** Brightest open fluid. A lid, an empty slot, and a dark fluid contribute nothing. */
     public int light() {
         int light = 0;
@@ -94,16 +103,22 @@ public class PotteryBlockEntity extends BlockEntity {
     }
 
     public boolean put(int index, Pottery pottery, VesselContents contents, boolean lid) {
+        return this.put(index, pottery, contents, lid, null);
+    }
+
+    public boolean put(int index, Pottery pottery, VesselContents contents, boolean lid, @Nullable String dye) {
         if (index < 0 || index >= this.slots.length || this.slots[index] != null) {
             return false;
         }
         Pottery[] next = Arrays.copyOf(this.slots, this.slots.length);
         VesselContents[] nextContents = Arrays.copyOf(this.contents, this.contents.length);
         boolean[] nextLids = Arrays.copyOf(this.lids, this.lids.length);
+        String[] nextDyes = Arrays.copyOf(this.dyes, this.dyes.length);
         next[index] = pottery;
         nextContents[index] = contents == null || contents.isEmpty() ? VesselContents.EMPTY : contents;
         nextLids[index] = lid;
-        this.replace(next, nextContents, nextLids);
+        nextDyes[index] = dye == null || dye.isEmpty() ? null : dye;
+        this.replace(next, nextContents, nextLids, nextDyes);
         return true;
     }
 
@@ -115,10 +130,12 @@ public class PotteryBlockEntity extends BlockEntity {
         Pottery[] next = Arrays.copyOf(this.slots, this.slots.length);
         VesselContents[] nextContents = Arrays.copyOf(this.contents, this.contents.length);
         boolean[] nextLids = Arrays.copyOf(this.lids, this.lids.length);
+        String[] nextDyes = Arrays.copyOf(this.dyes, this.dyes.length);
         next[index] = null;
         nextContents[index] = VesselContents.EMPTY;
         nextLids[index] = false;
-        this.replace(next, nextContents, nextLids);
+        nextDyes[index] = null;
+        this.replace(next, nextContents, nextLids, nextDyes);
         return taken;
     }
 
@@ -136,17 +153,18 @@ public class PotteryBlockEntity extends BlockEntity {
                     this.worldPosition.getX() + 0.5,
                     this.worldPosition.getY() + 0.5,
                     this.worldPosition.getZ() + 0.5,
-                    PotteryItem.stack(pottery, this.contents[index], this.lids[index])
+                    PotteryItem.stack(pottery, this.contents[index], this.lids[index], this.dyes[index])
             ));
         }
     }
 
-    private void replace(Pottery[] next, VesselContents[] nextContents, boolean[] nextLids) {
+    private void replace(Pottery[] next, VesselContents[] nextContents, boolean[] nextLids, String[] nextDyes) {
         boolean any = false;
         for (int index = 0; index < next.length; index++) {
             this.slots[index] = next[index];
             this.contents[index] = nextContents[index] == null ? VesselContents.EMPTY : nextContents[index];
             this.lids[index] = next[index] != null && nextLids[index];
+            this.dyes[index] = next[index] == null ? null : nextDyes[index];
             any |= next[index] != null;
         }
         if (!any && this.level != null) {
@@ -200,6 +218,9 @@ public class PotteryBlockEntity extends BlockEntity {
                 if (this.lids[index]) {
                     entry.putBoolean("lid", true);
                 }
+                if (this.dyes[index] != null && !this.dyes[index].isEmpty()) {
+                    entry.putString("dye", this.dyes[index]);
+                }
             }
             list.add(entry);
         }
@@ -213,6 +234,7 @@ public class PotteryBlockEntity extends BlockEntity {
             this.slots[index] = null;
             this.contents[index] = VesselContents.EMPTY;
             this.lids[index] = false;
+            this.dyes[index] = null;
             if (index >= list.size()) {
                 continue;
             }
@@ -222,6 +244,8 @@ public class PotteryBlockEntity extends BlockEntity {
                 this.slots[index] = Pottery.load(pottery);
                 this.contents[index] = VesselContents.read(entry);
                 this.lids[index] = Nbt.getBoolean(entry, "lid");
+                String dye = Nbt.getString(entry, "dye");
+                this.dyes[index] = dye.isEmpty() ? null : dye;
             }
         }
     }

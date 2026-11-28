@@ -24,6 +24,12 @@ import net.modcrafters.minecraft.primalpottery.client.PotteryPreview;
 //? if >=26.1
 import net.neoforged.neoforge.client.event.RegisterPictureInPictureRenderersEvent;
 //? if >=26.1
+import net.neoforged.neoforge.client.event.RegisterSpecialModelRendererEvent;
+//? if >=26.1
+import net.modcrafters.minecraft.primalpottery.client.PotterySpecialRenderer;
+//? if >=26.1
+import net.modcrafters.minecraft.primalpottery.Ids;
+//? if >=26.1
 import net.minecraft.client.renderer.rendertype.RenderTypes;
 //? if >=26.1
 import net.neoforged.neoforge.client.event.ExtractBlockOutlineRenderStateEvent;
@@ -61,10 +67,20 @@ public final class PrimalPotteryNeoForgeClient {
             *///?}
         };
         modBus.addListener(PrimalPotteryNeoForgeClient::renderers);
+        //? if <26.1 {
+        /*modBus.addListener(PrimalPotteryNeoForgeClient::colors);
+        *///?}
         //? if >=26.1 {
         modBus.addListener(PrimalPotteryNeoForgeClient::pictures);
+        modBus.addListener(PrimalPotteryNeoForgeClient::specialModels);
         PotteryPreview.SINK = (graphics, state) -> graphics.submitPictureInPictureRenderState(state);
         //?}
+        //? if >=1.21 && <26.1 {
+        /*modBus.addListener(PrimalPotteryNeoForgeClient::items);
+        *///?}
+        //? if <1.21 {
+        /*modBus.addListener(PrimalPotteryNeoForgeClient::bindItems);
+        *///?}
     }
 
     public static void registerGame(IEventBus gameBus) {
@@ -79,7 +95,62 @@ public final class PrimalPotteryNeoForgeClient {
     private static void pictures(RegisterPictureInPictureRenderersEvent event) {
         event.register(PotteryPreview.State.class, PotteryPreview.Renderer::new);
     }
+
+    private static void specialModels(RegisterSpecialModelRendererEvent event) {
+        event.register(Ids.of("pottery"), PotterySpecialRenderer.Unbaked.MAP_CODEC);
+    }
     //?}
+
+    //? if <26.1 {
+    /*private static net.neoforged.neoforge.client.extensions.common.IClientItemExtensions extensions() {
+        return new net.neoforged.neoforge.client.extensions.common.IClientItemExtensions() {
+            private net.minecraft.client.renderer.BlockEntityWithoutLevelRenderer renderer;
+
+            @Override
+            public net.minecraft.client.renderer.BlockEntityWithoutLevelRenderer getCustomRenderer() {
+                if (this.renderer == null) {
+                    var minecraft = net.minecraft.client.Minecraft.getInstance();
+                    this.renderer = new net.modcrafters.minecraft.primalpottery.client.PotteryItemRenderer(
+                            minecraft.getBlockEntityRenderDispatcher(), minecraft.getEntityModels());
+                }
+                return this.renderer;
+            }
+        };
+    }
+    *///?}
+
+    //? if >=1.21 && <26.1 {
+    /*private static void items(net.neoforged.neoforge.client.extensions.common.RegisterClientExtensionsEvent event) {
+        event.registerItem(
+                extensions(),
+                net.modcrafters.minecraft.primalpottery.item.ModItems.POTTERY,
+                net.modcrafters.minecraft.primalpottery.item.ModItems.RAW_POTTERY
+        );
+    }
+    *///?}
+
+    //? if <1.21 {
+    /*private static void bindItems(net.neoforged.fml.event.lifecycle.FMLClientSetupEvent event) {
+        var extensions = extensions();
+        net.modcrafters.minecraft.primalpottery.item.ModItems.POTTERY.renderProperties = extensions;
+        net.modcrafters.minecraft.primalpottery.item.ModItems.RAW_POTTERY.renderProperties = extensions;
+    }
+    *///?}
+
+    //? if <26.1 {
+    /*private static void colors(net.neoforged.neoforge.client.event.RegisterColorHandlersEvent.Item event) {
+        event.register(
+                (stack, tintIndex) -> {
+                    Integer color = net.modcrafters.minecraft.primalpottery.item.PotteryItem.dyeColor(
+                            net.modcrafters.minecraft.primalpottery.item.PotteryItem.dye(stack)
+                    );
+                    return color == null ? -1 : 0xFF000000 | color;
+                },
+                net.modcrafters.minecraft.primalpottery.item.ModItems.RAW_POTTERY,
+                net.modcrafters.minecraft.primalpottery.item.ModItems.POTTERY
+        );
+    }
+    *///?}
 
     private static void renderers(EntityRenderersEvent.RegisterRenderers event) {
         event.registerBlockEntityRenderer(ModBlockEntities.WHEEL, context -> new WheelRenderer());

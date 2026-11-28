@@ -2,6 +2,7 @@ package net.modcrafters.minecraft.primalpottery.client;
 
 import java.util.ArrayList;
 import java.util.List;
+import com.mojang.blaze3d.platform.InputConstants;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.screens.Screen;
@@ -167,18 +168,28 @@ public final class TemplateScreen extends Screen {
             graphics.text(this.font, Component.translatable("tooltip.primalpottery.capacity", info.volume()),
                     this.left + 10, this.top + 135 + this.font.lineHeight, -1);
         }
+        this.drawHints(graphics);
+    }
+
+    private void drawHints(GuiGraphicsExtractor graphics) {
+        Component left = Component.translatable("gui.primalpottery.template.left");
+        Component right = Component.translatable("gui.primalpottery.template.right");
+        int y = this.top + IMAGE_HEIGHT + 4;
+        graphics.text(this.font, left, this.left + (IMAGE_WIDTH - this.font.width(left)) / 2, y, 0xFFE0E0E0);
+        graphics.text(this.font, right, this.left + (IMAGE_WIDTH - this.font.width(right)) / 2, y + this.font.lineHeight, 0xFFE0E0E0);
     }
 
     private boolean sculpt(double mouseX, double mouseY, int button) {
         int x = (int) Math.floor(mouseX - this.left - PROFILE_X);
         int y = (int) Math.floor(mouseY - this.top - PROFILE_Y);
-        if (x < 0 || x >= PROFILE_WIDTH || y < 0 || y >= PROFILE_HEIGHT || this.discs.isEmpty() || (button != 0 && button != 1)) {
+        if (x < 0 || x >= PROFILE_WIDTH || y < 0 || y >= PROFILE_HEIGHT || this.discs.isEmpty()
+                || (button != InputConstants.MOUSE_BUTTON_LEFT && button != InputConstants.MOUSE_BUTTON_RIGHT)) {
             return false;
         }
         double value = x * Pottery.MAX_RADIUS / (PROFILE_WIDTH - 1);
         int row = y * this.discs.size() / PROFILE_HEIGHT;
         PotteryDisc disc = this.discs.get(row);
-        if (button == 0) {
+        if (button == InputConstants.MOUSE_BUTTON_LEFT) {
             this.discs.set(row, new PotteryDisc(disc.height(), value, Math.min(value, disc.innerRadius())));
         } else {
             this.discs.set(row, new PotteryDisc(disc.height(), disc.radius(), Math.min(disc.radius(), value)));

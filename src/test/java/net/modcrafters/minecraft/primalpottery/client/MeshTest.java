@@ -47,6 +47,35 @@ class MeshTest {
     }
 
     @Test
+    void layersShareTheWallShade() {
+        Mesh mesh = new Mesh();
+        mesh.vessel(0, 0, 0, List.of(new PotteryDisc(2, 6, 2), new PotteryDisc(2, 3, 1)), Mesh.Texture.CLAY);
+        int walls = 0;
+        int steps = 0;
+        for (Mesh.Quad quad : mesh.quads()) {
+            boolean flat = quad.y[0] == quad.y[1] && quad.y[1] == quad.y[2] && quad.y[2] == quad.y[3];
+            if (flat) {
+                if (quad.y[0] == 0 || quad.y[0] == 4) {
+                    continue;
+                }
+                steps++;
+                assertEquals(0, quad.ny, 0.001F);
+                float mx = (quad.x[0] + quad.x[1] + quad.x[2] + quad.x[3]) / 4.0F;
+                float mz = (quad.z[0] + quad.z[1] + quad.z[2] + quad.z[3]) / 4.0F;
+                float dot = mx * quad.nx + mz * quad.nz;
+                assertTrue(Math.hypot(mx, mz) > 2.5 ? dot > 0 : dot < 0);
+                continue;
+            }
+            walls++;
+            assertEquals(0, quad.ny, 0.001F);
+            float length = (float) Math.sqrt(quad.nx * quad.nx + quad.nz * quad.nz);
+            assertEquals(1, length, 0.001F);
+        }
+        assertEquals(32, walls);
+        assertEquals(16, steps);
+    }
+
+    @Test
     void zeroWidthWallsDoNotProduceFaces() {
         Mesh mesh = new Mesh();
         mesh.vessel(0, 0, 0, List.of(
@@ -102,6 +131,29 @@ class MeshTest {
     }
 
     @Test
+    void templateStandsOnEveryEdge() {
+        Mesh mesh = new Mesh();
+        mesh.edgeBoards(30, 24, 2, List.of(new PotteryDisc(2, 4), new PotteryDisc(2, 6)), Mesh.Texture.PLANKS);
+        assertTrue(reaches(mesh, 29, true, true));
+        assertTrue(reaches(mesh, 29, false, true));
+        assertTrue(reaches(mesh, 3, true, false));
+        assertTrue(reaches(mesh, 3, false, false));
+        for (Mesh.Quad quad : mesh.quads()) {
+            float minX = quad.x[0];
+            float maxZ = quad.z[0];
+            float minZ = quad.z[0];
+            for (int vertex = 1; vertex < 4; vertex++) {
+                minX = Math.min(minX, quad.x[vertex]);
+                maxZ = Math.max(maxZ, quad.z[vertex]);
+                minZ = Math.min(minZ, quad.z[vertex]);
+            }
+            if (minX > 20) {
+                assertTrue(minZ >= 14 && maxZ <= 18);
+            }
+        }
+    }
+
+    @Test
     void boardPushesIntoTheNarrowerClay() {
         Mesh mesh = new Mesh();
         mesh.board(30, 24, 2, 2, List.of(new PotteryDisc(2, 4), new PotteryDisc(2, 6)), Mesh.Texture.PLANKS);
@@ -133,6 +185,18 @@ class MeshTest {
             }
         }
         return reach;
+    }
+
+    private static boolean reaches(Mesh mesh, float limit, boolean alongX, boolean high) {
+        for (Mesh.Quad quad : mesh.quads()) {
+            for (int vertex = 0; vertex < 4; vertex++) {
+                float value = alongX ? quad.x[vertex] : quad.z[vertex];
+                if (high ? value > limit : value < limit) {
+                    return true;
+                }
+            }
+        }
+        return false;
     }
 
     private static float westEdge(Mesh mesh, float low, float high) {

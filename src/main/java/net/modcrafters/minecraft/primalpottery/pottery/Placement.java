@@ -10,6 +10,7 @@ import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.Vec3;
 import net.modcrafters.minecraft.primalpottery.block.ModBlocks;
 import net.modcrafters.minecraft.primalpottery.block.PotteryBlockEntity;
+import net.modcrafters.minecraft.primalpottery.block.PotteryWheelBlock;
 import net.modcrafters.minecraft.primalpottery.item.ModItems;
 import org.jspecify.annotations.Nullable;
 
@@ -18,11 +19,15 @@ public final class Placement {
     }
 
     public static @Nullable AABB outline(Level level, @Nullable Player player, BlockHitResult hit) {
+        BlockPos pos = hit.getBlockPos();
+        var state = level.getBlockState(pos);
+        if (state.is(ModBlocks.WHEEL)) {
+            return PotteryWheelBlock.outline(state, pos);
+        }
         if (player == null || !player.getMainHandItem().is(ModItems.POTTERY)) {
             return null;
         }
-        BlockPos pos = hit.getBlockPos();
-        if (level.getBlockState(pos).is(ModBlocks.POTTERY)) {
+        if (state.is(ModBlocks.POTTERY)) {
             if (!(level.getBlockEntity(pos) instanceof PotteryBlockEntity pottery)) {
                 return null;
             }
